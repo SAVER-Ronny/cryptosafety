@@ -477,7 +477,6 @@ async function runScan() {
   document.getElementById('results').classList.add('visible');
   document.getElementById('analysisCard').style.display = 'none';
   document.getElementById('payCard').style.display = 'none';
-  document.getElementById('scoreNum').textContent = '—';
   document.getElementById('verdict').textContent = 'SCANNING...';
   document.getElementById('verdict').className = 'verdict';
   document.getElementById('tokenId').textContent = currentAddress.slice(0, 14) + '...';
@@ -506,7 +505,7 @@ async function runScan() {
     }
 
     if (d.total_flags !== undefined) {
-      const fc = document.getElementById('flagCount'); if(fc) fc.textContent =
+      document.getElementById('flagCount').textContent =
         `${d.total_flags} issue${d.total_flags !== 1 ? 's' : ''} detected — full details in report`;
     }
 
