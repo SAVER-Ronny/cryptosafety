@@ -655,7 +655,7 @@ async function openCryptoPayment() {
     cryptoSessionId = d.session_id;
 
     document.getElementById('walletAddr').textContent = d.wallet;
-    document.getElementById('qrCode').src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=ethereum:${d.wallet}&bgcolor=0C0E12&color=ECEEF2&margin=8`;
+    document.getElementById('qrCode').src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${d.wallet}&margin=10`;
     document.getElementById('cryptoOverlay').style.display = 'block';
     document.getElementById('payCard').style.display = 'none';
 
