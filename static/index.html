@@ -506,7 +506,7 @@ async function runScan() {
     }
 
     if (d.total_flags !== undefined) {
-      document.getElementById('flagCount').textContent =
+      const fc = document.getElementById('flagCount'); if(fc) fc.textContent =
         `${d.total_flags} issue${d.total_flags !== 1 ? 's' : ''} detected — full details in report`;
     }
 
