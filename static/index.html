@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CryptoSafety — Rug Pull Detector</title>
-<meta name="google-site-verification" content="vpSiYtigy6wDA27riBhURK4L3n_8ooLQyM4Y6rv_lVo" />
 <meta name="description" content="Instant AI-powered rug pull detection. Paste any contract address and get a full security report in seconds.">
+<meta name="google-site-verification" content="vpSiYtigy6wDA27riBhURK4L3n_8ooLQyM4Y6rv_lVo" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -34,12 +34,11 @@ body {
   overflow-x: hidden;
 }
 
-/* Grid background */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
-  background-image: 
+  background-image:
     linear-gradient(rgba(107,124,240,0.03) 1px, transparent 1px),
     linear-gradient(90deg, rgba(107,124,240,0.03) 1px, transparent 1px);
   background-size: 40px 40px;
@@ -47,7 +46,6 @@ body::before {
   z-index: 0;
 }
 
-/* Alert ticker */
 .ticker {
   background: rgba(255,53,53,0.08);
   border-bottom: 1px solid rgba(255,53,53,0.15);
@@ -56,14 +54,12 @@ body::before {
   position: relative;
   z-index: 1;
 }
-
 .ticker-inner {
   display: flex;
   gap: 48px;
   animation: ticker 30s linear infinite;
   white-space: nowrap;
 }
-
 .ticker-item {
   font-family: var(--mono);
   font-size: 11px;
@@ -71,12 +67,10 @@ body::before {
   opacity: 0.8;
   letter-spacing: 0.05em;
 }
-
 .ticker-item span { color: var(--muted); margin: 0 8px; }
-
+.ticker-item.ok { color: var(--safe); }
 @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
-/* Header */
 .header {
   border-bottom: 1px solid var(--border);
   padding: 14px 24px;
@@ -85,19 +79,10 @@ body::before {
   gap: 10px;
   position: relative;
   z-index: 1;
-  backdrop-filter: blur(10px);
 }
-
-.logo {
-  font-family: var(--mono);
-  font-weight: 700;
-  font-size: 14px;
-  letter-spacing: -0.02em;
-}
-
+.logo { font-family: var(--mono); font-weight: 700; font-size: 14px; letter-spacing: -0.02em; }
 .logo .green { color: var(--safe); }
 .logo .dim { color: var(--muted); }
-
 .live-badge {
   margin-left: auto;
   display: flex;
@@ -108,7 +93,6 @@ body::before {
   color: var(--safe);
   letter-spacing: 0.1em;
 }
-
 .live-dot {
   width: 5px; height: 5px;
   border-radius: 50%;
@@ -116,10 +100,8 @@ body::before {
   box-shadow: 0 0 8px var(--safe);
   animation: blink 1.5s infinite;
 }
-
 @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
-/* Hero */
 .hero {
   max-width: 640px;
   margin: 0 auto;
@@ -128,7 +110,6 @@ body::before {
   position: relative;
   z-index: 1;
 }
-
 .threat-label {
   display: inline-flex;
   align-items: center;
@@ -144,33 +125,13 @@ body::before {
   text-transform: uppercase;
   margin-bottom: 28px;
 }
+.threat-pulse { width: 5px; height: 5px; border-radius: 50%; background: var(--danger); animation: blink 1s infinite; }
 
-.threat-pulse {
-  width: 5px; height: 5px;
-  border-radius: 50%;
-  background: var(--danger);
-  animation: blink 1s infinite;
-}
-
-h1 {
-  font-size: clamp(32px, 6vw, 58px);
-  font-weight: 700;
-  letter-spacing: -0.04em;
-  line-height: 1.05;
-  margin-bottom: 18px;
-}
-
+h1 { font-size: clamp(32px, 6vw, 58px); font-weight: 700; letter-spacing: -0.04em; line-height: 1.05; margin-bottom: 18px; }
 h1 .red { color: var(--danger); }
-h1 .dim { color: var(--muted); }
 
-.sub {
-  font-size: 16px;
-  color: var(--muted);
-  margin-bottom: 48px;
-  line-height: 1.6;
-}
+.sub { font-size: 16px; color: var(--muted); margin-bottom: 48px; line-height: 1.6; }
 
-/* Scanner */
 .scanner {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -178,13 +139,7 @@ h1 .dim { color: var(--muted); }
   padding: 20px;
   margin-bottom: 16px;
 }
-
-.chain-row {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 12px;
-}
-
+.chain-row { display: flex; gap: 4px; margin-bottom: 12px; }
 .chain-btn {
   flex: 1;
   padding: 8px 4px;
@@ -199,20 +154,10 @@ h1 .dim { color: var(--muted); }
   transition: all 0.15s;
   letter-spacing: 0.05em;
 }
-
-.chain-btn.active {
-  border-color: var(--accent);
-  color: var(--text);
-  background: rgba(107,124,240,0.1);
-}
-
+.chain-btn.active { border-color: var(--accent); color: var(--text); background: rgba(107,124,240,0.1); }
 .chain-btn:hover:not(.active) { border-color: var(--muted); color: var(--text); }
 
-.input-row {
-  display: flex;
-  gap: 10px;
-}
-
+.input-row { display: flex; gap: 10px; }
 .addr-input {
   flex: 1;
   background: var(--surface2);
@@ -226,7 +171,6 @@ h1 .dim { color: var(--muted); }
   transition: border-color 0.2s;
   min-width: 0;
 }
-
 .addr-input:focus { border-color: var(--accent); }
 .addr-input::placeholder { color: var(--muted); }
 
@@ -242,26 +186,13 @@ h1 .dim { color: var(--muted); }
   cursor: pointer;
   transition: all 0.2s;
   white-space: nowrap;
-  letter-spacing: 0.01em;
 }
-
 .scan-btn:hover { filter: brightness(1.1); transform: translateY(-1px); box-shadow: 0 4px 20px rgba(255,53,53,0.3); }
 .scan-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
 
-.error-msg {
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--danger);
-  margin-top: 10px;
-  display: none;
-}
+.error-msg { font-family: var(--mono); font-size: 12px; color: var(--danger); margin-top: 10px; display: none; }
 
-/* Results */
-.results {
-  display: none;
-  margin-top: 16px;
-}
-
+.results { display: none; margin-top: 16px; }
 .results.visible { display: block; }
 
 .score-card {
@@ -274,96 +205,70 @@ h1 .dim { color: var(--muted); }
   align-items: center;
   gap: 20px;
 }
-
-.score-ring {
-  width: 80px;
-  height: 80px;
-  flex-shrink: 0;
-  position: relative;
-}
-
+.score-ring { width: 80px; height: 80px; flex-shrink: 0; position: relative; }
 .score-ring svg { transform: rotate(-90deg); }
-
-.score-ring-text {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-.score-ring-num {
-  font-family: var(--mono);
-  font-size: 20px;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.score-ring-label {
-  font-family: var(--mono);
-  font-size: 9px;
-  color: var(--muted);
-  margin-top: 2px;
-}
-
+.score-ring-text { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.score-ring-num { font-family: var(--mono); font-size: 20px; font-weight: 700; line-height: 1; }
+.score-ring-label { font-family: var(--mono); font-size: 9px; color: var(--muted); margin-top: 2px; }
 .score-info { flex: 1; min-width: 0; }
-
-.verdict {
-  font-family: var(--mono);
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  margin-bottom: 4px;
-}
-
+.verdict { font-family: var(--mono); font-size: 18px; font-weight: 700; letter-spacing: 0.05em; margin-bottom: 4px; }
 .verdict.danger { color: var(--danger); }
 .verdict.warning { color: var(--warning); }
 .verdict.safe { color: var(--safe); }
+.token-id { font-family: var(--mono); font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.token-id {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.flags-card {
+/* Flags & cluster */
+.analysis-card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 16px 20px;
   margin-bottom: 10px;
 }
-
-.flags-title {
+.card-section { margin-bottom: 14px; }
+.card-section:last-child { margin-bottom: 0; }
+.section-title {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--muted);
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  margin-bottom: 12px;
-}
-
-.flag-row {
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--text);
-  padding: 7px 0;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
   border-bottom: 1px solid var(--border);
-  line-height: 1.4;
 }
-
+.flag-row { font-family: var(--mono); font-size: 12px; color: var(--text); padding: 5px 0; border-bottom: 1px solid var(--border); }
 .flag-row:last-child { border-bottom: none; }
 
-.more-flags {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--muted);
-  margin-top: 10px;
+/* Cluster analysis */
+.cluster-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cluster-stat {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
 }
+.cs-label { font-family: var(--mono); font-size: 9px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 4px; }
+.cs-value { font-family: var(--mono); font-size: 14px; font-weight: 700; }
+.cs-value.bad { color: var(--danger); }
+.cs-value.warn { color: var(--warning); }
+.cs-value.good { color: var(--safe); }
+.cs-value.neutral { color: var(--text); }
+
+.holder-bar {
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+.holder-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--safe), var(--warning) 50%, var(--danger));
+}
+
+.more-flags { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 8px; }
 
 .pay-card {
   background: linear-gradient(135deg, rgba(107,124,240,0.08), rgba(107,124,240,0.03));
@@ -373,21 +278,8 @@ h1 .dim { color: var(--muted); }
   margin-bottom: 10px;
   text-align: center;
 }
-
-.pay-title {
-  font-size: 15px;
-  font-weight: 600;
-  margin-bottom: 6px;
-}
-
-.pay-desc {
-  font-size: 12px;
-  color: var(--muted);
-  margin-bottom: 16px;
-  font-family: var(--mono);
-  line-height: 1.6;
-}
-
+.pay-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+.pay-desc { font-size: 12px; color: var(--muted); margin-bottom: 16px; font-family: var(--mono); line-height: 1.6; }
 .pay-btn {
   width: 100%;
   padding: 14px;
@@ -401,7 +293,6 @@ h1 .dim { color: var(--muted); }
   cursor: pointer;
   transition: all 0.2s;
 }
-
 .pay-btn:hover { filter: brightness(1.1); }
 .pay-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
@@ -418,10 +309,8 @@ h1 .dim { color: var(--muted); }
   display: none;
   margin-bottom: 10px;
 }
-
 .report-card.visible { display: block; }
 
-/* Stats */
 .stats-row {
   display: flex;
   justify-content: center;
@@ -434,30 +323,11 @@ h1 .dim { color: var(--muted); }
   position: relative;
   z-index: 1;
 }
-
-.stat {
-  flex: 1;
-  padding: 24px 16px;
-  text-align: center;
-  border-right: 1px solid var(--border);
-}
-
+.stat { flex: 1; padding: 24px 16px; text-align: center; border-right: 1px solid var(--border); }
 .stat:last-child { border-right: none; }
+.stat-num { font-family: var(--mono); font-size: 24px; font-weight: 700; color: var(--danger); margin-bottom: 4px; }
+.stat-label { font-size: 11px; color: var(--muted); }
 
-.stat-num {
-  font-family: var(--mono);
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--danger);
-  margin-bottom: 4px;
-}
-
-.stat-label {
-  font-size: 11px;
-  color: var(--muted);
-}
-
-/* Spinner */
 .spinner {
   display: inline-block;
   width: 14px; height: 14px;
@@ -468,46 +338,37 @@ h1 .dim { color: var(--muted); }
   vertical-align: middle;
   margin-right: 6px;
 }
-
 @keyframes spin { to { transform: rotate(360deg); } }
 </style>
-<script type="text/javascript">(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y)})(window,document,"clarity","script","y68e8lrxrb");</script></head>
+</head>
 <body>
 
-<!-- Ticker -->
 <div class="ticker">
-  <div class="ticker-inner" id="ticker">
-    <span class="ticker-item">⚠ DOGE2025 <span>·</span> HONEYPOT DETECTED <span>·</span> $180K at risk</span>
+  <div class="ticker-inner">
     <span class="ticker-item">⚠ PEPE3X <span>·</span> SELL TAX 99% <span>·</span> BSC</span>
     <span class="ticker-item">⚠ SAFEMOON2 <span>·</span> MINT NOT REVOKED <span>·</span> ETH</span>
-    <span class="ticker-item">✓ WBTC <span>·</span> VERIFIED SAFE <span>·</span> ETH</span>
+    <span class="ticker-item ok">✓ WBTC <span>·</span> VERIFIED SAFE <span>·</span> ETH</span>
     <span class="ticker-item">⚠ TURBO888 <span>·</span> TOP HOLDER 67% <span>·</span> BASE</span>
     <span class="ticker-item">⚠ DOGE2025 <span>·</span> HONEYPOT DETECTED <span>·</span> $180K at risk</span>
+    <span class="ticker-item">⚠ MOONRAT <span>·</span> LP NOT LOCKED <span>·</span> BSC</span>
     <span class="ticker-item">⚠ PEPE3X <span>·</span> SELL TAX 99% <span>·</span> BSC</span>
     <span class="ticker-item">⚠ SAFEMOON2 <span>·</span> MINT NOT REVOKED <span>·</span> ETH</span>
-    <span class="ticker-item">✓ WBTC <span>·</span> VERIFIED SAFE <span>·</span> ETH</span>
+    <span class="ticker-item ok">✓ WBTC <span>·</span> VERIFIED SAFE <span>·</span> ETH</span>
     <span class="ticker-item">⚠ TURBO888 <span>·</span> TOP HOLDER 67% <span>·</span> BASE</span>
+    <span class="ticker-item">⚠ DOGE2025 <span>·</span> HONEYPOT DETECTED <span>·</span> $180K at risk</span>
+    <span class="ticker-item">⚠ MOONRAT <span>·</span> LP NOT LOCKED <span>·</span> BSC</span>
   </div>
 </div>
 
-<!-- Header -->
 <div class="header">
   <div class="logo">crypto<span class="green">safety</span><span class="dim">.tech</span></div>
-  <div class="live-badge">
-    <div class="live-dot"></div>
-    LIVE
-  </div>
+  <div class="live-badge"><div class="live-dot"></div>LIVE</div>
 </div>
 
-<!-- Hero -->
 <div class="hero">
-  <div class="threat-label">
-    <div class="threat-pulse"></div>
-    Threat Detection Active
-  </div>
-
+  <div class="threat-label"><div class="threat-pulse"></div>Threat Detection Active</div>
   <h1>Is this token a<br><span class="red">rug pull?</span></h1>
-  <p class="sub">Paste any contract address.<br>AI-powered security report in under 10 seconds.</p>
+  <p class="sub">Paste any contract address.<br>AI + on-chain security analysis in under 10 seconds.</p>
 
   <div class="scanner">
     <div class="chain-row">
@@ -518,13 +379,14 @@ h1 .dim { color: var(--muted); }
       <button class="chain-btn" data-chain="solana">SOL</button>
     </div>
     <div class="input-row">
-      <input class="addr-input" id="addressInput" type="text" placeholder="0x... contract address">
+      <input class="addr-input" id="addressInput" type="text" placeholder="0x... contract address" autocomplete="off" spellcheck="false">
       <button class="scan-btn" id="scanBtn" onclick="runScan()">Scan →</button>
     </div>
     <div class="error-msg" id="errorMsg"></div>
   </div>
 
   <div class="results" id="results">
+
     <div class="score-card" id="scoreCard">
       <div class="score-ring">
         <svg width="80" height="80" viewBox="0 0 80 80">
@@ -544,50 +406,51 @@ h1 .dim { color: var(--muted); }
       </div>
     </div>
 
-    <div class="flags-card" id="flagsCard" style="display:none">
-      <div class="flags-title">⚠ Issues found</div>
-      <div id="flagsList"></div>
-      <div class="more-flags" id="moreFlags"></div>
+    <!-- Analysis card with flags + cluster -->
+    <div class="analysis-card" id="analysisCard" style="display:none">
+
+      <!-- Security flags -->
+      <div class="card-section" id="flagsSection" style="display:none">
+        <div class="section-title">⚠ Issues detected</div>
+        <div id="flagsList"></div>
+        <div class="more-flags" id="moreFlags"></div>
+      </div>
+
+      <!-- Cluster analysis -->
+      <div class="card-section" id="clusterSection" style="display:none">
+        <div class="section-title">◈ Wallet cluster analysis</div>
+        <div class="cluster-grid" id="clusterGrid"></div>
+        <div class="holder-bar" style="margin-top:12px">
+          <div class="holder-fill" id="holderFill" style="width:0%;transition:width 1s ease"></div>
+        </div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:4px" id="holderBarLabel"></div>
+      </div>
+
     </div>
 
     <div class="pay-card" id="payCard" style="display:none">
       <div class="pay-title">Full Security Report — $7</div>
       <div class="pay-desc">
-        All 14 checks · AI verdict · Honeypot · Liquidity lock<br>
-        Mint status · Holder analysis · Recommendations
+        All 14 checks · AI verdict · Honeypot · LP lock<br>
+        Mint status · Full cluster analysis · Recommendations
       </div>
-      <button class="pay-btn" id="payBtn" onclick="checkout()">
-        Get Full Report →
-      </button>
+      <button class="pay-btn" id="payBtn" onclick="checkout()">Get Full Report →</button>
     </div>
 
     <div class="report-card" id="reportCard"></div>
+
   </div>
 </div>
 
-<!-- Stats -->
 <div class="stats-row">
-  <div class="stat">
-    <div class="stat-num">$2.1B</div>
-    <div class="stat-label">lost to rugs in 2025</div>
-  </div>
-  <div class="stat">
-    <div class="stat-num">14</div>
-    <div class="stat-label">checks per scan</div>
-  </div>
-  <div class="stat">
-    <div class="stat-num">&lt;10s</div>
-    <div class="stat-label">scan time</div>
-  </div>
-  <div class="stat">
-    <div class="stat-num">$7</div>
-    <div class="stat-label">full report</div>
-  </div>
+  <div class="stat"><div class="stat-num">$2.1B</div><div class="stat-label">lost to rugs in 2025</div></div>
+  <div class="stat"><div class="stat-num">14</div><div class="stat-label">checks per scan</div></div>
+  <div class="stat"><div class="stat-num">&lt;10s</div><div class="stat-label">scan time</div></div>
+  <div class="stat"><div class="stat-num">$7</div><div class="stat-label">full report</div></div>
 </div>
 
 <script>
-let chain = 'eth';
-let currentAddress = '';
+let chain = 'eth', currentAddress = '';
 
 document.querySelectorAll('.chain-btn').forEach(b => {
   b.addEventListener('click', () => {
@@ -597,27 +460,43 @@ document.querySelectorAll('.chain-btn').forEach(b => {
   });
 });
 
+function setVerdict(score, verdict, tokenName) {
+  const cls = score >= 60 ? 'danger' : score >= 25 ? 'warning' : 'safe';
+  const colors = { danger: '#FF3535', warning: '#F5A623', safe: '#00C48C' };
+  
+  document.getElementById('scoreNum').textContent = score;
+  document.getElementById('verdict').textContent = verdict;
+  document.getElementById('verdict').className = `verdict ${cls}`;
+  if (tokenName) document.getElementById('tokenId').textContent = tokenName;
+
+  const circle = document.getElementById('scoreCircle');
+  circle.style.stroke = colors[cls];
+  setTimeout(() => {
+    circle.style.strokeDashoffset = 201 - (score / 100) * 201;
+  }, 100);
+}
+
 async function runScan() {
   currentAddress = document.getElementById('addressInput').value.trim();
-  const errEl = document.getElementById('errorMsg');
+  const err = document.getElementById('errorMsg');
   const btn = document.getElementById('scanBtn');
-  errEl.style.display = 'none';
+  err.style.display = 'none';
 
   if (currentAddress.length < 30) {
-    errEl.textContent = 'Enter a valid contract address';
-    errEl.style.display = 'block';
+    err.textContent = 'Enter a valid contract address';
+    err.style.display = 'block';
     return;
   }
 
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span>Scanning...';
   document.getElementById('results').classList.add('visible');
-  document.getElementById('flagsCard').style.display = 'none';
+  document.getElementById('analysisCard').style.display = 'none';
   document.getElementById('payCard').style.display = 'none';
+  document.getElementById('scoreNum').textContent = '—';
   document.getElementById('verdict').textContent = 'SCANNING...';
   document.getElementById('verdict').className = 'verdict';
-  document.getElementById('scoreNum').textContent = '—';
-  document.getElementById('tokenId').textContent = currentAddress.slice(0,12) + '...';
+  document.getElementById('tokenId').textContent = currentAddress.slice(0, 14) + '...';
 
   try {
     const res = await fetch('/api/preview', {
@@ -627,26 +506,11 @@ async function runScan() {
     });
     const d = await res.json();
 
-    document.getElementById('scoreNum').textContent = d.score;
+    setVerdict(d.score, d.verdict, d.token_name);
 
-    const circle = document.getElementById('scoreCircle');
-    const circumference = 201;
-    const offset = circumference - (d.score / 100) * circumference;
-    
-    let color = '#00C48C';
-    let cls = 'safe';
-    if (d.score >= 60) { color = '#FF3535'; cls = 'danger'; }
-    else if (d.score >= 25) { color = '#F5A623'; cls = 'warning'; }
-    
-    circle.style.stroke = color;
-    setTimeout(() => { circle.style.strokeDashoffset = offset; }, 100);
+    document.getElementById('analysisCard').style.display = 'block';
 
-    const verdictEl = document.getElementById('verdict');
-    verdictEl.textContent = d.verdict;
-    verdictEl.className = `verdict ${cls}`;
-
-    if (d.token_name) document.getElementById('tokenId').textContent = d.token_name;
-
+    // Security flags
     if (d.top_flags && d.top_flags.length > 0) {
       document.getElementById('flagsList').innerHTML = d.top_flags.map(f =>
         `<div class="flag-row">${f.text}</div>`
@@ -654,14 +518,52 @@ async function runScan() {
       if (d.total_flags > 2) {
         document.getElementById('moreFlags').textContent = `+${d.total_flags - 2} more issues in full report`;
       }
-      document.getElementById('flagsCard').style.display = 'block';
+      document.getElementById('flagsSection').style.display = 'block';
+    }
+
+    // Cluster analysis
+    if (d.cluster) {
+      const c = d.cluster;
+      const giniCls = c.gini > 0.8 ? 'bad' : c.gini > 0.6 ? 'warn' : 'good';
+      const top10Cls = c.top10_pct > 80 ? 'bad' : c.top10_pct > 60 ? 'warn' : 'good';
+      const whaleCls = c.whale_count > 3 ? 'bad' : c.whale_count > 1 ? 'warn' : 'good';
+      const splitCls = c.split_risk === 'HIGH' ? 'bad' : c.split_risk === 'MEDIUM' ? 'warn' : 'good';
+
+      document.getElementById('clusterGrid').innerHTML = `
+        <div class="cluster-stat">
+          <div class="cs-label">Distribution (Gini)</div>
+          <div class="cs-value ${giniCls}">${c.gini.toFixed(2)}</div>
+          <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:2px">${c.gini > 0.8 ? 'Highly concentrated' : c.gini > 0.6 ? 'Concentrated' : 'Distributed'}</div>
+        </div>
+        <div class="cluster-stat">
+          <div class="cs-label">Top 10 wallets</div>
+          <div class="cs-value ${top10Cls}">${c.top10_pct.toFixed(1)}%</div>
+          <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:2px">of total supply</div>
+        </div>
+        <div class="cluster-stat">
+          <div class="cs-label">Whale wallets (&gt;5%)</div>
+          <div class="cs-value ${whaleCls}">${c.whale_count} detected</div>
+          <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:2px">${c.whale_count > 0 ? 'High single-wallet risk' : 'No major whales'}</div>
+        </div>
+        <div class="cluster-stat">
+          <div class="cs-label">Split wallet risk</div>
+          <div class="cs-value ${splitCls}">${c.split_risk}</div>
+          <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:2px">${c.split_wallet_count > 0 ? c.split_wallet_count + ' suspicious pairs' : 'No pattern detected'}</div>
+        </div>
+      `;
+
+      setTimeout(() => {
+        document.getElementById('holderFill').style.width = Math.min(c.top10_pct, 100) + '%';
+      }, 200);
+      document.getElementById('holderBarLabel').textContent = `Top 10 holder concentration: ${c.top10_pct.toFixed(1)}%`;
+      document.getElementById('clusterSection').style.display = 'block';
     }
 
     document.getElementById('payCard').style.display = 'block';
 
   } catch(e) {
-    errEl.textContent = 'Scan failed. Try again.';
-    errEl.style.display = 'block';
+    document.getElementById('errorMsg').textContent = 'Scan failed. Try again.';
+    document.getElementById('errorMsg').style.display = 'block';
   }
 
   btn.disabled = false;
@@ -671,7 +573,7 @@ async function runScan() {
 async function checkout() {
   const btn = document.getElementById('payBtn');
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>Opening...';
+  btn.innerHTML = '<span class="spinner"></span>Opening checkout...';
   try {
     const res = await fetch('/api/checkout', {
       method: 'POST',
@@ -698,25 +600,17 @@ if (sid) {
   document.getElementById('payCard').style.display = 'none';
   document.getElementById('verdict').textContent = 'LOADING...';
 
-  fetch(`/api/report?session_id=${sid}`)
+  fetch('/api/report?session_id=' + sid)
     .then(r => r.json())
     .then(d => {
-      document.getElementById('scoreNum').textContent = d.score;
-      const circle = document.getElementById('scoreCircle');
-      let color = '#00C48C'; let cls = 'safe';
-      if (d.score >= 60) { color = '#FF3535'; cls = 'danger'; }
-      else if (d.score >= 25) { color = '#F5A623'; cls = 'warning'; }
-      circle.style.stroke = color;
-      setTimeout(() => { circle.style.strokeDashoffset = 201 - (d.score/100)*201; }, 100);
-      const v = document.getElementById('verdict');
-      v.textContent = d.score >= 60 ? 'DANGER' : d.score >= 25 ? 'WARNING' : 'LIKELY SAFE';
-      v.className = `verdict ${cls}`;
+      setVerdict(d.score, d.score >= 60 ? 'DANGER' : d.score >= 25 ? 'WARNING' : 'LIKELY SAFE', '');
 
       if (d.flags && d.flags.length > 0) {
         document.getElementById('flagsList').innerHTML = d.flags.map(f =>
           `<div class="flag-row">${f.text}</div>`
         ).join('');
-        document.getElementById('flagsCard').style.display = 'block';
+        document.getElementById('flagsSection').style.display = 'block';
+        document.getElementById('analysisCard').style.display = 'block';
       }
 
       const rc = document.getElementById('reportCard');
@@ -729,5 +623,7 @@ document.getElementById('addressInput').addEventListener('keypress', e => {
   if (e.key === 'Enter') runScan();
 });
 </script>
+
+<script type="text/javascript">(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y)})(window,document,"clarity","script","y68e8lrxrb");</script>
 </body>
 </html>

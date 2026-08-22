@@ -111,6 +111,67 @@ def check_liquidity_lock(goplus: dict) -> str:
     else:
         return "🔴 NOT LOCKED"
 
+def analyze_cluster(goplus: dict) -> dict:
+    """Analyze wallet cluster patterns from holder data — Bubblemaps-style without the API"""
+    holders = goplus.get("holders", [])
+    if not holders:
+        return {}
+
+    # Extract percentages
+    pcts = [float(h.get("percent", 0)) * 100 for h in holders]
+    if not pcts:
+        return {}
+
+    # Gini coefficient (measure of inequality/concentration)
+    n = len(pcts)
+    sorted_pcts = sorted(pcts)
+    cumsum = 0
+    gini_sum = 0
+    for i, p in enumerate(sorted_pcts):
+        cumsum += p
+        gini_sum += (2 * (i + 1) - n - 1) * p
+    gini = gini_sum / (n * sum(pcts)) if sum(pcts) > 0 else 0
+    gini = abs(gini)
+
+    # Top 10 concentration
+    top10_pct = sum(pcts[:10])
+
+    # Whale wallets (>5% each)
+    whale_count = sum(1 for p in pcts if p > 5)
+
+    # Split wallet detection — look for suspiciously similar balances
+    # Wallets with nearly identical holdings suggest coordinated splitting
+    split_wallet_count = 0
+    split_pairs = []
+    for i in range(min(len(pcts), 20)):
+        for j in range(i+1, min(len(pcts), 20)):
+            if pcts[i] > 0.5 and pcts[j] > 0.5:
+                diff = abs(pcts[i] - pcts[j])
+                avg = (pcts[i] + pcts[j]) / 2
+                if avg > 0 and (diff / avg) < 0.05:  # within 5% of each other
+                    split_wallet_count += 1
+
+    # Split risk level
+    if split_wallet_count >= 5:
+        split_risk = "HIGH"
+    elif split_wallet_count >= 2:
+        split_risk = "MEDIUM"
+    else:
+        split_risk = "LOW"
+
+    # Check for known contract/exchange wallets
+    known_safe = sum(1 for h in holders if h.get("is_contract", 0) == 1 or h.get("tag", ""))
+
+    return {
+        "gini": round(gini, 3),
+        "top10_pct": round(top10_pct, 2),
+        "whale_count": whale_count,
+        "split_risk": split_risk,
+        "split_wallet_count": split_wallet_count,
+        "known_safe_wallets": known_safe,
+        "total_holders_analyzed": n
+    }
+
 def calculate_risk(goplus: dict, dex: dict) -> tuple:
     score = 0
     flags = []
@@ -206,13 +267,16 @@ async def preview(request: AnalysisRequest):
         if symbol:
             token_name = f"{token_name} ({symbol})"
 
+    cluster = analyze_cluster(goplus)
+
     return {
         "score": score,
         "verdict": verdict,
         "token_name": token_name,
         "top_flags": flags[:2],
         "total_flags": len(flags),
-        "chain_detected": actual_chain
+        "chain_detected": actual_chain,
+        "cluster": cluster if cluster else None
     }
 
 @app.post("/api/checkout")
