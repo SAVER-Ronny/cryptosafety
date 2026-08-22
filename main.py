@@ -15,12 +15,8 @@ stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
 DOMAIN = os.environ.get("DOMAIN", "http://localhost:8000")
 
 CHAIN_IDS = {
-    "eth": "1",
-    "bsc": "56",
-    "base": "8453",
-    "arbitrum": "42161",
-    "polygon": "137",
-    "solana": "solana"
+    "eth": "1", "bsc": "56", "base": "8453",
+    "arbitrum": "42161", "polygon": "137", "solana": "solana"
 }
 
 class AnalysisRequest(BaseModel):
@@ -28,32 +24,16 @@ class AnalysisRequest(BaseModel):
     chain: str
 
 def auto_detect_chain(address: str, selected_chain: str) -> str:
-    """Auto-detect chain from address format"""
     address = address.strip()
-    # Solana addresses are base58, 32-44 chars, no 0x prefix
     if not address.startswith("0x") and len(address) > 30:
         return "solana"
-    # EVM address - try selected chain first, default to eth
     if address.startswith("0x"):
         if selected_chain in ["bsc", "base", "arbitrum", "polygon", "eth"]:
             return selected_chain
         return "eth"
     return selected_chain
 
-async def get_goplus_data_multi_chain(address: str, chain: str) -> tuple:
-    """Try multiple chains if result is empty"""
-    result = await get_goplus_data(address, chain)
-    if result:
-        return result, chain
-    
-    # If empty, try other EVM chains
-    if address.startswith("0x"):
-        for fallback_chain in ["bsc", "eth", "base", "arbitrum", "polygon"]:
-            if fallback_chain != chain:
-                result = await get_goplus_data(address, fallback_chain)
-                if result:
-                    return result, fallback_chain
-    return {}, chain
+# ─── DATA SOURCES ───────────────────────────────────────────
 
 async def get_goplus_data(address: str, chain: str) -> dict:
     try:
@@ -63,23 +43,49 @@ async def get_goplus_data(address: str, chain: str) -> dict:
             else:
                 chain_id = CHAIN_IDS.get(chain, "1")
                 url = f"https://api.gopluslabs.io/api/v1/token_security/{chain_id}?contract_addresses={address}"
-            response = await http.get(url)
-            data = response.json()
-            if data.get("code") == 1 and data.get("result"):
-                return list(data["result"].values())[0]
+            r = await http.get(url)
+            d = r.json()
+            if d.get("code") == 1 and d.get("result"):
+                result = list(d["result"].values())[0]
+                if result:
+                    return result
     except Exception as e:
         print(f"GoPlus error: {e}")
+    return {}
+
+async def get_goplus_multi_chain(address: str, chain: str) -> tuple:
+    result = await get_goplus_data(address, chain)
+    if result:
+        return result, chain
+    if address.startswith("0x"):
+        for c in ["bsc", "eth", "base", "arbitrum", "polygon"]:
+            if c != chain:
+                result = await get_goplus_data(address, c)
+                if result:
+                    return result, c
+    return {}, chain
+
+async def get_rugcheck_data(address: str) -> dict:
+    """RugCheck.xyz API — excellent for Solana tokens"""
+    try:
+        async with httpx.AsyncClient(timeout=12.0) as http:
+            url = f"https://api.rugcheck.xyz/v1/tokens/{address}/report"
+            r = await http.get(url)
+            if r.status_code == 200:
+                return r.json()
+    except Exception as e:
+        print(f"RugCheck error: {e}")
     return {}
 
 async def get_dexscreener_data(address: str) -> dict:
     try:
         async with httpx.AsyncClient(timeout=10.0) as http:
             url = f"https://api.dexscreener.com/latest/dex/tokens/{address}"
-            response = await http.get(url)
-            data = response.json()
-            if data.get("pairs") and len(data["pairs"]) > 0:
+            r = await http.get(url)
+            d = r.json()
+            if d.get("pairs") and len(d["pairs"]) > 0:
                 pairs = sorted(
-                    data["pairs"],
+                    d["pairs"],
                     key=lambda x: float(x.get("liquidity", {}).get("usd", 0) or 0),
                     reverse=True
                 )
@@ -88,94 +94,116 @@ async def get_dexscreener_data(address: str) -> dict:
         print(f"DexScreener error: {e}")
     return {}
 
+# ─── ANALYSIS FUNCTIONS ────────────────────────────────────
+
 KNOWN_LOCKERS = ["dead", "unicrypt", "team.finance", "pinksale", "mudra", "deeplock", "uncx", "pinklock"]
 
-def check_liquidity_lock(goplus: dict) -> str:
+def check_liquidity_lock(goplus: dict, rugcheck: dict) -> str:
+    # Try GoPlus LP holders first
     lp_holders = goplus.get("lp_holders", [])
-    if not lp_holders:
-        return "⚠️ Unknown — LP data not available"
-    total_locked = 0.0
-    for h in lp_holders:
-        address = h.get("address", "").lower()
-        tag = h.get("tag", "").lower()
-        pct = float(h.get("percent", 0)) * 100
-        is_locked = h.get("is_locked", 0)
-        is_dead = "dead" in address or address == "0x0000000000000000000000000000000000000000"
-        is_locker = any(l in tag for l in KNOWN_LOCKERS) or is_dead
-        if is_locked == 1 or is_locker:
-            total_locked += pct
-    if total_locked >= 80:
-        return f"✅ LOCKED ({total_locked:.0f}% of LP)"
-    elif total_locked > 0:
-        return f"⚠️ PARTIAL ({total_locked:.0f}% of LP locked)"
-    else:
-        return "🔴 NOT LOCKED"
+    if lp_holders:
+        total_locked = 0.0
+        for h in lp_holders:
+            address = h.get("address", "").lower()
+            tag = h.get("tag", "").lower()
+            pct = float(h.get("percent", 0)) * 100
+            is_locked = h.get("is_locked", 0)
+            is_dead = "dead" in address or address == "0x0000000000000000000000000000000000000000"
+            is_locker = any(l in tag for l in KNOWN_LOCKERS) or is_dead
+            if is_locked == 1 or is_locker:
+                total_locked += pct
+        if total_locked >= 80:
+            return f"LOCKED ({total_locked:.0f}%)"
+        elif total_locked > 0:
+            return f"PARTIAL ({total_locked:.0f}% locked)"
+        else:
+            return "NOT LOCKED"
 
-def analyze_cluster(goplus: dict) -> dict:
-    """Analyze wallet cluster patterns from holder data — Bubblemaps-style without the API"""
-    holders = goplus.get("holders", [])
+    # Try RugCheck for Solana
+    if rugcheck:
+        markets = rugcheck.get("markets", [])
+        for m in markets:
+            lp = m.get("lp", {})
+            if lp.get("lpLockedPct", 0) > 80:
+                return f"LOCKED ({lp['lpLockedPct']:.0f}%)"
+            elif lp.get("lpLockedPct", 0) > 0:
+                return f"PARTIAL ({lp['lpLockedPct']:.0f}%)"
+        return "NOT LOCKED"
+
+    return "UNKNOWN"
+
+def analyze_cluster_from_goplus(holders: list) -> dict:
+    """Cluster analysis from GoPlus holder data"""
     if not holders:
         return {}
-
-    # Extract percentages
     pcts = [float(h.get("percent", 0)) * 100 for h in holders]
+    return _compute_cluster(pcts, holders)
+
+def analyze_cluster_from_dex(dex: dict) -> dict:
+    """Fallback cluster analysis from DexScreener"""
+    if not dex:
+        return {}
+    # DexScreener doesn't have holder list but has some info
+    # We return a minimal cluster based on what we know
+    return {}
+
+def analyze_cluster_from_rugcheck(rugcheck: dict) -> dict:
+    """Cluster analysis from RugCheck data (Solana)"""
+    if not rugcheck:
+        return {}
+    top_holders = rugcheck.get("topHolders", [])
+    if not top_holders:
+        return {}
+    pcts = [float(h.get("pct", 0)) * 100 for h in top_holders]
+    return _compute_cluster(pcts, None)
+
+def _compute_cluster(pcts: list, raw_holders) -> dict:
     if not pcts:
         return {}
-
-    # Gini coefficient (measure of inequality/concentration)
     n = len(pcts)
-    sorted_pcts = sorted(pcts)
-    cumsum = 0
-    gini_sum = 0
-    for i, p in enumerate(sorted_pcts):
-        cumsum += p
-        gini_sum += (2 * (i + 1) - n - 1) * p
-    gini = gini_sum / (n * sum(pcts)) if sum(pcts) > 0 else 0
-    gini = abs(gini)
+    total = sum(pcts)
+    if total == 0:
+        return {}
 
-    # Top 10 concentration
+    # Gini coefficient
+    sorted_p = sorted(pcts)
+    gini_sum = sum((2*(i+1) - n - 1) * p for i, p in enumerate(sorted_p))
+    gini = abs(gini_sum / (n * total)) if total > 0 else 0
+
     top10_pct = sum(pcts[:10])
-
-    # Whale wallets (>5% each)
     whale_count = sum(1 for p in pcts if p > 5)
 
-    # Split wallet detection — look for suspiciously similar balances
-    # Wallets with nearly identical holdings suggest coordinated splitting
-    split_wallet_count = 0
-    split_pairs = []
+    # Split wallet detection
+    split_count = 0
     for i in range(min(len(pcts), 20)):
         for j in range(i+1, min(len(pcts), 20)):
             if pcts[i] > 0.5 and pcts[j] > 0.5:
                 diff = abs(pcts[i] - pcts[j])
                 avg = (pcts[i] + pcts[j]) / 2
-                if avg > 0 and (diff / avg) < 0.05:  # within 5% of each other
-                    split_wallet_count += 1
+                if avg > 0 and (diff / avg) < 0.05:
+                    split_count += 1
 
-    # Split risk level
-    if split_wallet_count >= 5:
-        split_risk = "HIGH"
-    elif split_wallet_count >= 2:
-        split_risk = "MEDIUM"
-    else:
-        split_risk = "LOW"
-
-    # Check for known contract/exchange wallets
-    known_safe = sum(1 for h in holders if h.get("is_contract", 0) == 1 or h.get("tag", ""))
+    split_risk = "HIGH" if split_count >= 5 else "MEDIUM" if split_count >= 2 else "LOW"
 
     return {
         "gini": round(gini, 3),
         "top10_pct": round(top10_pct, 2),
         "whale_count": whale_count,
         "split_risk": split_risk,
-        "split_wallet_count": split_wallet_count,
-        "known_safe_wallets": known_safe,
-        "total_holders_analyzed": n
+        "split_wallet_count": split_count,
+        "total_analyzed": n
     }
 
-def calculate_risk(goplus: dict, dex: dict) -> tuple:
+def calculate_risk(goplus: dict, dex: dict, rugcheck: dict, has_data: bool) -> tuple:
     score = 0
     flags = []
 
+    # ─── NO DATA = RED FLAG ───
+    if not has_data:
+        score += 30
+        flags.append({"level": "high", "text": "No verified security data found — unverified token carries elevated risk"})
+
+    # ─── GOPLUS CHECKS ───
     if goplus.get("is_honeypot") == "1":
         score += 45
         flags.append({"level": "critical", "text": "HONEYPOT — Tokens cannot be sold"})
@@ -185,13 +213,12 @@ def calculate_risk(goplus: dict, dex: dict) -> tuple:
         flags.append({"level": "high", "text": "Mint not revoked — Dev can inflate supply"})
 
     sell_tax = float(goplus.get("sell_tax", 0) or 0)
-    buy_tax = float(goplus.get("buy_tax", 0) or 0)
     if sell_tax > 10:
         score += 25
         flags.append({"level": "critical", "text": f"Sell tax {sell_tax}% — Classic rug setup"})
     elif sell_tax > 5:
         score += 10
-        flags.append({"level": "medium", "text": f"Sell tax {sell_tax}%"})
+        flags.append({"level": "medium", "text": f"High sell tax: {sell_tax}%"})
 
     if goplus.get("slippage_modifiable") == "1":
         score += 15
@@ -212,10 +239,47 @@ def calculate_risk(goplus: dict, dex: dict) -> tuple:
         if top > 30:
             score += 20
             flags.append({"level": "critical", "text": f"Top wallet holds {top:.1f}% of supply"})
-        elif top > 15:
+        elif top > 20:
             score += 10
             flags.append({"level": "medium", "text": f"Top wallet holds {top:.1f}%"})
 
+    # ─── RUGCHECK CHECKS (Solana) ───
+    if rugcheck:
+        rc_risks = rugcheck.get("risks", [])
+        for r in rc_risks:
+            level = r.get("level", "").lower()
+            name = r.get("name", "")
+            if level == "danger":
+                score += 20
+                flags.append({"level": "critical", "text": f"RugCheck: {name}"})
+            elif level == "warn":
+                score += 10
+                flags.append({"level": "medium", "text": f"RugCheck: {name}"})
+
+        # Mint/freeze authority from RugCheck
+        mint_auth = rugcheck.get("mintAuthority")
+        freeze_auth = rugcheck.get("freezeAuthority")
+        if mint_auth and mint_auth != "null":
+            score += 15
+            flags.append({"level": "high", "text": "Mint authority not revoked (Solana)"})
+        if freeze_auth and freeze_auth != "null":
+            score += 10
+            flags.append({"level": "medium", "text": "Freeze authority active — Dev can freeze wallets"})
+
+    # ─── LIQUIDITY CHECK ───
+    lock_status = check_liquidity_lock(goplus, rugcheck)
+    if lock_status == "NOT LOCKED":
+        score += 20
+        flags.append({"level": "critical", "text": "Liquidity NOT LOCKED — Dev can rug anytime"})
+    elif "PARTIAL" in lock_status:
+        score += 10
+        flags.append({"level": "medium", "text": f"Liquidity {lock_status}"})
+    elif lock_status == "UNKNOWN" and not has_data:
+        flags.append({"level": "medium", "text": "Liquidity lock status unknown"})
+    else:
+        flags.append({"level": "safe", "text": f"Liquidity {lock_status}"})
+
+    # ─── MARKET DATA ───
     if dex:
         liq = float(dex.get("liquidity", {}).get("usd", 0) or 0)
         if liq < 5000:
@@ -225,18 +289,9 @@ def calculate_risk(goplus: dict, dex: dict) -> tuple:
             score += 10
             flags.append({"level": "medium", "text": f"Low liquidity: ${liq:,.0f}"})
 
-    # Liquidity lock check
-    lock_status = check_liquidity_lock(goplus)
-    if "NOT LOCKED" in lock_status:
-        score += 20
-        flags.append({"level": "critical", "text": f"Liquidity {lock_status} — Dev can rug anytime"})
-    elif "PARTIAL" in lock_status:
-        score += 10
-        flags.append({"level": "medium", "text": f"Liquidity {lock_status}"})
-    else:
-        flags.append({"level": "safe", "text": f"Liquidity {lock_status}"})
-
     return min(score, 100), flags
+
+# ─── ROUTES ────────────────────────────────────────────────
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
@@ -255,19 +310,38 @@ async def preview(request: AnalysisRequest):
         raise HTTPException(status_code=400, detail="Invalid contract address")
 
     detected_chain = auto_detect_chain(address, request.chain)
-    goplus, actual_chain = await get_goplus_data_multi_chain(address, detected_chain)
-    dex = await get_dexscreener_data(address)
-    score, flags = calculate_risk(goplus, dex)
+
+    # Fetch all data sources in parallel
+    import asyncio
+    goplus_task = get_goplus_multi_chain(address, detected_chain)
+    dex_task = get_dexscreener_data(address)
+
+    if detected_chain == "solana":
+        (goplus, actual_chain), dex, rugcheck = await asyncio.gather(
+            goplus_task, dex_task, get_rugcheck_data(address)
+        )
+    else:
+        (goplus, actual_chain), dex = await asyncio.gather(goplus_task, dex_task)
+        rugcheck = {}
+
+    has_data = bool(goplus) or bool(rugcheck)
+    score, flags = calculate_risk(goplus, dex, rugcheck, has_data)
+
+    # Cluster analysis — use best available source
+    cluster = None
+    if goplus.get("holders"):
+        cluster = analyze_cluster_from_goplus(goplus["holders"])
+    elif rugcheck.get("topHolders"):
+        cluster = analyze_cluster_from_rugcheck(rugcheck)
 
     verdict = "DANGER" if score >= 60 else "WARNING" if score >= 25 else "LIKELY SAFE"
     token_name = ""
     if dex:
-        token_name = dex.get("baseToken", {}).get("name", "")
+        name = dex.get("baseToken", {}).get("name", "")
         symbol = dex.get("baseToken", {}).get("symbol", "")
-        if symbol:
-            token_name = f"{token_name} ({symbol})"
-
-    cluster = analyze_cluster(goplus)
+        token_name = f"{name} ({symbol})" if symbol else name
+    if not token_name and rugcheck:
+        token_name = rugcheck.get("tokenMeta", {}).get("name", "")
 
     return {
         "score": score,
@@ -276,7 +350,8 @@ async def preview(request: AnalysisRequest):
         "top_flags": flags[:2],
         "total_flags": len(flags),
         "chain_detected": actual_chain,
-        "cluster": cluster if cluster else None
+        "has_data": has_data,
+        "cluster": cluster
     }
 
 @app.post("/api/checkout")
@@ -297,10 +372,7 @@ async def checkout(request: AnalysisRequest):
         mode="payment",
         success_url=f"{DOMAIN}/success?session_id={{CHECKOUT_SESSION_ID}}",
         cancel_url=f"{DOMAIN}/",
-        metadata={
-            "address": request.address[:200],
-            "chain": request.chain
-        }
+        metadata={"address": request.address[:200], "chain": request.chain}
     )
     return {"url": session.url}
 
@@ -316,37 +388,51 @@ async def get_report(session_id: str):
 
     address = session.metadata.get("address", "")
     chain = session.metadata.get("chain", "eth")
-
     detected_chain = auto_detect_chain(address, chain)
-    goplus, actual_chain = await get_goplus_data_multi_chain(address, detected_chain)
-    dex = await get_dexscreener_data(address)
-    score, flags = calculate_risk(goplus, dex)
+
+    import asyncio
+    goplus_task = get_goplus_multi_chain(address, detected_chain)
+    dex_task = get_dexscreener_data(address)
+
+    if detected_chain == "solana":
+        (goplus, actual_chain), dex, rugcheck = await asyncio.gather(
+            goplus_task, dex_task, get_rugcheck_data(address)
+        )
+    else:
+        (goplus, actual_chain), dex = await asyncio.gather(goplus_task, dex_task)
+        rugcheck = {}
+
+    has_data = bool(goplus) or bool(rugcheck)
+    score, flags = calculate_risk(goplus, dex, rugcheck, has_data)
+
+    cluster = None
+    if goplus.get("holders"):
+        cluster = analyze_cluster_from_goplus(goplus["holders"])
+    elif rugcheck.get("topHolders"):
+        cluster = analyze_cluster_from_rugcheck(rugcheck)
 
     details = {
         "address": address,
-        "chain": chain.upper(),
+        "chain": actual_chain.upper(),
         "risk_score": score,
+        "has_security_data": has_data,
         "honeypot": goplus.get("is_honeypot") == "1",
         "mintable": goplus.get("is_mintable") == "1",
         "buy_tax": f"{float(goplus.get('buy_tax', 0) or 0):.1f}%",
         "sell_tax": f"{float(goplus.get('sell_tax', 0) or 0):.1f}%",
         "open_source": goplus.get("is_open_source") == "1",
         "owner_renounced": goplus.get("owner_address", "").lower() in ["", "0x0000000000000000000000000000000000000000"],
-        "owner_percent": f"{float(goplus.get('owner_percent', 0) or 0):.2f}%",
-        "top_holders": [
-            {"address": h.get("address", "")[:12] + "...", "pct": f"{float(h.get('percent', 0))*100:.2f}%"}
-            for h in goplus.get("holders", [])[:5]
-        ],
         "liquidity_usd": f"${float(dex.get('liquidity', {}).get('usd', 0) or 0):,.0f}" if dex else "N/A",
-        "volume_24h": f"${float(dex.get('volume', {}).get('h24', 0) or 0):,.0f}" if dex else "N/A",
-        "liquidity_lock": check_liquidity_lock(goplus),
+        "liquidity_lock": check_liquidity_lock(goplus, rugcheck),
+        "cluster": cluster,
+        "rugcheck_risks": [r.get("name") for r in rugcheck.get("risks", [])] if rugcheck else [],
         "red_flags": [f["text"] for f in flags]
     }
 
     ai = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
-            {"role": "system", "content": """You are a professional crypto security auditor. 
+            {"role": "system", "content": """You are a professional crypto security auditor.
 Analyze this token data and produce a security report in this EXACT format:
 
 ━━━ VERDICT ━━━
@@ -354,28 +440,33 @@ Analyze this token data and produce a security report in this EXACT format:
 Risk Score: X/100
 
 ━━━ SECURITY CHECKS ━━━
-Honeypot Test:     [PASS/FAIL]
-Mint Authority:    [REVOKED/ACTIVE]  
-Buy Tax:           [X%]
-Sell Tax:          [X%]
-Contract:          [VERIFIED/UNVERIFIED]
-Owner Renounced:   [YES/NO]
-Liquidity:         [$X]
-Liquidity Lock:    [LOCKED/NOT LOCKED/PARTIAL]
+Security Data:     [AVAILABLE / NOT AVAILABLE — elevated risk]
+Honeypot Test:     [PASS/FAIL/UNKNOWN]
+Mint Authority:    [REVOKED/ACTIVE/UNKNOWN]
+Buy Tax:           [X% / UNKNOWN]
+Sell Tax:          [X% / UNKNOWN]
+Contract:          [VERIFIED/UNVERIFIED/UNKNOWN]
+Owner Renounced:   [YES/NO/UNKNOWN]
+Liquidity:         [$X / UNKNOWN]
+Liquidity Lock:    [LOCKED X% / NOT LOCKED / UNKNOWN]
+
+━━━ CLUSTER ANALYSIS ━━━
+[If cluster data available: summarize Gini, whale risk, split wallet risk]
+[If not available: note this as a risk factor]
 
 ━━━ RED FLAGS ━━━
-[List each flag with emoji: 🔴 critical, 🟡 medium, ✅ ok]
+[List each with: 🔴 critical, 🟡 medium, ✅ safe]
 
 ━━━ ANALYSIS ━━━
-[2-3 sentences specific to THIS token's risks]
+[2-3 sentences. If no data: emphasize this is itself a major red flag]
 
 ━━━ RECOMMENDATION ━━━
-[Clear buy/avoid/caution advice]
+[Clear advice. If no data: AVOID until verified]
 
-Be direct. No filler."""},
+Be direct. No filler. UNKNOWN data should always be treated as risk."""},
             {"role": "user", "content": json.dumps(details, default=str)}
         ],
-        max_tokens=500
+        max_tokens=600
     )
 
     return {
