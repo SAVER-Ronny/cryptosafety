@@ -388,44 +388,21 @@ h1 .red { color: var(--danger); }
   <div class="results" id="results">
 
     <div class="score-card" id="scoreCard">
-      <div class="score-ring">
-        <svg width="80" height="80" viewBox="0 0 80 80">
-          <circle cx="40" cy="40" r="32" fill="none" stroke="#1A1E28" stroke-width="6"/>
-          <circle cx="40" cy="40" r="32" fill="none" stroke="#FF3535" stroke-width="6"
-            stroke-dasharray="201" stroke-dashoffset="201" id="scoreCircle"
-            stroke-linecap="round" style="transition: stroke-dashoffset 1s ease"/>
-        </svg>
-        <div class="score-ring-text">
-          <div class="score-ring-num" id="scoreNum">—</div>
-          <div class="score-ring-label">RISK</div>
-        </div>
-      </div>
-      <div class="score-info">
+      <div class="score-info" style="flex:1">
         <div class="verdict" id="verdict">SCANNING...</div>
         <div class="token-id" id="tokenId"></div>
+        <div style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:6px" id="flagCount"></div>
       </div>
     </div>
 
     <!-- Analysis card with flags + cluster -->
     <div class="analysis-card" id="analysisCard" style="display:none">
-
-      <!-- Security flags -->
+      <!-- Security flags teaser only -->
       <div class="card-section" id="flagsSection" style="display:none">
         <div class="section-title">⚠ Issues detected</div>
         <div id="flagsList"></div>
-        <div class="more-flags" id="moreFlags"></div>
+        <div style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:8px;padding-top:8px;border-top:1px solid var(--border)" id="moreFlags"></div>
       </div>
-
-      <!-- Cluster analysis -->
-      <div class="card-section" id="clusterSection" style="display:none">
-        <div class="section-title">◈ Wallet cluster analysis</div>
-        <div class="cluster-grid" id="clusterGrid"></div>
-        <div class="holder-bar" style="margin-top:12px">
-          <div class="holder-fill" id="holderFill" style="width:0%;transition:width 1s ease"></div>
-        </div>
-        <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:4px" id="holderBarLabel"></div>
-      </div>
-
     </div>
 
     <div class="pay-card" id="payCard" style="display:none">
@@ -478,18 +455,9 @@ document.querySelectorAll('.chain-btn').forEach(b => {
 
 function setVerdict(score, verdict, tokenName) {
   const cls = score >= 60 ? 'danger' : score >= 25 ? 'warning' : 'safe';
-  const colors = { danger: '#FF3535', warning: '#F5A623', safe: '#00C48C' };
-  
-  document.getElementById('scoreNum').textContent = score;
   document.getElementById('verdict').textContent = verdict;
   document.getElementById('verdict').className = `verdict ${cls}`;
   if (tokenName) document.getElementById('tokenId').textContent = tokenName;
-
-  const circle = document.getElementById('scoreCircle');
-  circle.style.stroke = colors[cls];
-  setTimeout(() => {
-    circle.style.strokeDashoffset = 201 - (score / 100) * 201;
-  }, 100);
 }
 
 async function runScan() {
@@ -526,53 +494,20 @@ async function runScan() {
 
     document.getElementById('analysisCard').style.display = 'block';
 
-    // Security flags
+    // Show only 1 flag as teaser + count
     if (d.top_flags && d.top_flags.length > 0) {
-      document.getElementById('flagsList').innerHTML = d.top_flags.map(f =>
-        `<div class="flag-row">${f.text}</div>`
-      ).join('');
-      if (d.total_flags > 2) {
-        document.getElementById('moreFlags').textContent = `+${d.total_flags - 2} more issues in full report`;
+      document.getElementById('flagsList').innerHTML =
+        `<div class="flag-row">${d.top_flags[0].text}</div>`;
+      if (d.total_flags > 1) {
+        document.getElementById('moreFlags').textContent =
+          `+${d.total_flags - 1} more issues hidden — unlock full report`;
       }
       document.getElementById('flagsSection').style.display = 'block';
     }
 
-    // Cluster analysis
-    if (d.cluster) {
-      const c = d.cluster;
-      const giniCls = c.gini > 0.8 ? 'bad' : c.gini > 0.6 ? 'warn' : 'good';
-      const top10Cls = c.top10_pct > 80 ? 'bad' : c.top10_pct > 60 ? 'warn' : 'good';
-      const whaleCls = c.whale_count > 3 ? 'bad' : c.whale_count > 1 ? 'warn' : 'good';
-      const splitCls = c.split_risk === 'HIGH' ? 'bad' : c.split_risk === 'MEDIUM' ? 'warn' : 'good';
-
-      document.getElementById('clusterGrid').innerHTML = `
-        <div class="cluster-stat">
-          <div class="cs-label">Distribution (Gini)</div>
-          <div class="cs-value ${giniCls}">${c.gini.toFixed(2)}</div>
-          <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:2px">${c.gini > 0.8 ? 'Highly concentrated' : c.gini > 0.6 ? 'Concentrated' : 'Distributed'}</div>
-        </div>
-        <div class="cluster-stat">
-          <div class="cs-label">Top 10 wallets</div>
-          <div class="cs-value ${top10Cls}">${c.top10_pct.toFixed(1)}%</div>
-          <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:2px">of total supply</div>
-        </div>
-        <div class="cluster-stat">
-          <div class="cs-label">Whale wallets (&gt;5%)</div>
-          <div class="cs-value ${whaleCls}">${c.whale_count} detected</div>
-          <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:2px">${c.whale_count > 0 ? 'High single-wallet risk' : 'No major whales'}</div>
-        </div>
-        <div class="cluster-stat">
-          <div class="cs-label">Split wallet risk</div>
-          <div class="cs-value ${splitCls}">${c.split_risk}</div>
-          <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:2px">${c.split_wallet_count > 0 ? c.split_wallet_count + ' suspicious pairs' : 'No pattern detected'}</div>
-        </div>
-      `;
-
-      setTimeout(() => {
-        document.getElementById('holderFill').style.width = Math.min(c.top10_pct, 100) + '%';
-      }, 200);
-      document.getElementById('holderBarLabel').textContent = `Top 10 holder concentration: ${c.top10_pct.toFixed(1)}%`;
-      document.getElementById('clusterSection').style.display = 'block';
+    if (d.total_flags !== undefined) {
+      document.getElementById('flagCount').textContent =
+        `${d.total_flags} issue${d.total_flags !== 1 ? 's' : ''} detected — full details in report`;
     }
 
     document.getElementById('payCard').style.display = 'block';
@@ -655,7 +590,7 @@ async function openCryptoPayment() {
     cryptoSessionId = d.session_id;
 
     document.getElementById('walletAddr').textContent = d.wallet;
-    document.getElementById('qrCode').src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${d.wallet}&margin=10`;
+    document.getElementById('qrCode').src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=ethereum:${d.wallet}&bgcolor=0C0E12&color=ECEEF2&margin=8`;
     document.getElementById('cryptoOverlay').style.display = 'block';
     document.getElementById('payCard').style.display = 'none';
 
@@ -664,7 +599,7 @@ async function openCryptoPayment() {
     cryptoTimerInterval = setInterval(() => {
       secs--;
       const m = Math.floor(secs / 60);
-      const s = String(secs % 60).padStart(2,'0');
+      const s = secs % 60;
       document.getElementById('cryptoTimer').textContent = `Expires in ${m}:${s.toString().padStart(2,'0')}`;
       if (secs <= 0) closeCryptoPayment();
     }, 1000);
