@@ -167,11 +167,20 @@ def check_liquidity_lock(goplus: dict, rugcheck: dict) -> str:
     return "UNKNOWN"
 
 def analyze_cluster_from_goplus(holders: list) -> dict:
-    """Cluster analysis from GoPlus holder data"""
+    """Cluster analysis from GoPlus holder data — excludes LP contracts"""
     if not holders:
         return {}
-    pcts = [float(h.get("percent", 0)) * 100 for h in holders]
-    return _compute_cluster(pcts, holders)
+    # Filter out LP contracts and locked wallets
+    real_holders = [
+        h for h in holders
+        if h.get("is_contract", 0) == 0
+        and "LP" not in (h.get("tag", "") or "").upper()
+        and "POOL" not in (h.get("tag", "") or "").upper()
+    ]
+    if not real_holders:
+        return {}
+    pcts = [float(h.get("percent", 0)) * 100 for h in real_holders]
+    return _compute_cluster(pcts, real_holders)
 
 def analyze_cluster_from_dex(dex: dict) -> dict:
     """Fallback cluster analysis from DexScreener"""
@@ -293,13 +302,22 @@ def calculate_risk(goplus: dict, dex: dict, rugcheck: dict, honeypot: dict, has_
 
     holders = goplus.get("holders", [])
     if holders:
-        top = float(holders[0].get("percent", 0)) * 100
-        if top > 30:
-            score += 20
-            flags.append({"level": "critical", "text": f"Top wallet holds {top:.1f}% of supply"})
-        elif top > 20:
-            score += 10
-            flags.append({"level": "medium", "text": f"Top wallet holds {top:.1f}%"})
+        # Filter out LP contracts and known exchange wallets
+        real_holders = [
+            h for h in holders
+            if h.get("is_contract", 0) == 0
+            and h.get("is_locked", 0) == 0
+            and "LP" not in (h.get("tag", "") or "").upper()
+            and "POOL" not in (h.get("tag", "") or "").upper()
+        ]
+        if real_holders:
+            top = float(real_holders[0].get("percent", 0)) * 100
+            if top > 30:
+                score += 20
+                flags.append({"level": "critical", "text": f"Top wallet holds {top:.1f}% of supply"})
+            elif top > 20:
+                score += 10
+                flags.append({"level": "medium", "text": f"Top wallet holds {top:.1f}%"})
 
     # ─── RUGCHECK CHECKS (Solana) ───
     if rugcheck:
