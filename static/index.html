@@ -434,7 +434,23 @@ h1 .red { color: var(--danger); }
         All 14 checks · AI verdict · Honeypot · LP lock<br>
         Mint status · Full cluster analysis · Recommendations
       </div>
-      <button class="pay-btn" id="payBtn" onclick="checkout()">Get Full Report →</button>
+      <div style="display:flex;gap:8px">
+        <button class="pay-btn" id="payBtn" onclick="checkout()" style="flex:1">Get Full Report →</button>
+        <button class="pay-btn" id="cryptoBtn" onclick="openCryptoPayment()" style="flex:1;background:rgba(107,124,240,0.15);border:1px solid rgba(107,124,240,0.4);color:#8B9CF4">Pay with USDC ◈</button>
+      </div>
+    </div>
+
+    <!-- Crypto payment overlay -->
+    <div id="cryptoOverlay" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:10px;text-align:center">
+      <div style="font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px">Crypto Payment</div>
+      <div style="font-family:var(--mono);font-size:13px;color:var(--warning);font-weight:700;margin-bottom:16px">Send exactly 7 USDC on Ethereum Mainnet</div>
+      <img id="qrCode" src="" style="width:160px;height:160px;border-radius:8px;margin-bottom:16px" alt="QR Code">
+      <div style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:6px">⚠️ USDC only · Ethereum network only · Not BSC/Polygon</div>
+      <div style="font-family:var(--mono);font-size:12px;color:var(--text);background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:8px;word-break:break-all;cursor:pointer" onclick="copyWallet()" id="walletAddr"></div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:16px">Click address to copy · Scan QR with MetaMask or Coinbase Wallet</div>
+      <div id="cryptoStatus" style="font-family:var(--mono);font-size:13px;color:var(--warning)"><span class="spinner"></span>Waiting for payment...</div>
+      <div id="cryptoTimer" style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:8px"></div>
+      <button onclick="closeCryptoPayment()" style="margin-top:16px;background:transparent;border:1px solid var(--border);color:var(--muted);font-family:var(--mono);font-size:11px;padding:8px 16px;border-radius:6px;cursor:pointer">Cancel</button>
     </div>
 
     <div class="report-card" id="reportCard"></div>
@@ -622,6 +638,84 @@ if (sid) {
 document.getElementById('addressInput').addEventListener('keypress', e => {
   if (e.key === 'Enter') runScan();
 });
+
+// ─── CRYPTO PAYMENT ───────────────────────────────────────
+let cryptoSessionId = null;
+let cryptoPollInterval = null;
+let cryptoTimerInterval = null;
+
+async function openCryptoPayment() {
+  try {
+    const res = await fetch('/api/crypto-session', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({address: currentAddress, chain})
+    });
+    const d = await res.json();
+    cryptoSessionId = d.session_id;
+
+    document.getElementById('walletAddr').textContent = d.wallet;
+    document.getElementById('qrCode').src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=ethereum:${d.wallet}&bgcolor=0C0E12&color=ECEEF2&margin=8`;
+    document.getElementById('cryptoOverlay').style.display = 'block';
+    document.getElementById('payCard').style.display = 'none';
+
+    // Timer
+    let secs = d.expires_in;
+    cryptoTimerInterval = setInterval(() => {
+      secs--;
+      const m = Math.floor(secs / 60);
+      const s = secs % 60;
+      document.getElementById('cryptoTimer').textContent = `Expires in ${m}:${s.toString().padStart(2,'0')}`;
+      if (secs <= 0) closeCryptoPayment();
+    }, 1000);
+
+    // Poll for payment
+    cryptoPollInterval = setInterval(async () => {
+      try {
+        const r = await fetch(`/api/check-payment?session_id=${cryptoSessionId}`);
+        const p = await r.json();
+        if (p.paid) {
+          clearInterval(cryptoPollInterval);
+          clearInterval(cryptoTimerInterval);
+          document.getElementById('cryptoStatus').innerHTML = '✅ Payment confirmed! Loading report...';
+          document.getElementById('cryptoStatus').style.color = 'var(--safe)';
+          loadCryptoReport();
+        } else if (p.expired) {
+          closeCryptoPayment();
+        }
+      } catch(e) {}
+    }, 10000);
+
+  } catch(e) {
+    alert('Error starting crypto payment. Try card instead.');
+  }
+}
+
+async function loadCryptoReport() {
+  try {
+    const r = await fetch(`/api/crypto-report?session_id=${cryptoSessionId}`);
+    const d = await r.json();
+    document.getElementById('cryptoOverlay').style.display = 'none';
+    const rc = document.getElementById('reportCard');
+    rc.textContent = d.report;
+    rc.classList.add('visible');
+  } catch(e) {
+    document.getElementById('cryptoStatus').textContent = 'Error loading report. Contact support.';
+  }
+}
+
+function closeCryptoPayment() {
+  clearInterval(cryptoPollInterval);
+  clearInterval(cryptoTimerInterval);
+  document.getElementById('cryptoOverlay').style.display = 'none';
+  document.getElementById('payCard').style.display = 'block';
+}
+
+function copyWallet() {
+  navigator.clipboard.writeText('0x63eAbA93c1B453F2Ed4Dc00610aC98ed5B365be6');
+  document.getElementById('walletAddr').style.color = 'var(--safe)';
+  setTimeout(() => { document.getElementById('walletAddr').style.color = 'var(--text)'; }, 1500);
+}
 </script>
 
 <script type="text/javascript">(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y)})(window,document,"clarity","script","y68e8lrxrb");</script>
