@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CryptoSafe — Rug Pull Detector</title>
+<meta name="description" content="Instant AI-powered rug pull detection. Paste any contract address and get a full security analysis in seconds.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #080A0D;
+  --surface: #0E1117;
+  --border: #1C2130;
+  --text: #E8EAF0;
+  --muted: #4A5568;
+  --danger: #FF3B3B;
+  --warning: #F59E0B;
+  --safe: #10B981;
+  --accent: #5B7CF6;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Inter', sans-serif;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  min-height: 100vh;
+  line-height: 1.6;
+}
+
+.header {
+  border-bottom: 1px solid var(--border);
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+.logo span {
+  color: var(--safe);
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--safe);
+  margin-left: auto;
+  box-shadow: 0 0 6px var(--safe);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.hero {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 64px 24px 0;
+  text-align: center;
+}
+
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 20px;
+}
+
+h1 {
+  font-size: clamp(28px, 5vw, 48px);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  margin-bottom: 16px;
+}
+
+h1 em {
+  font-style: normal;
+  color: var(--danger);
+}
+
+.subtitle {
+  color: var(--muted);
+  font-size: 16px;
+  margin-bottom: 48px;
+}
+
+.chain-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px;
+  margin-bottom: 12px;
+  max-width: 520px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.chain-tab {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 5px;
+  transition: all 0.15s;
+  font-weight: 600;
+}
+
+.chain-tab.active {
+  background: var(--border);
+  color: var(--text);
+}
+
+.chain-tab:hover:not(.active) {
+  color: var(--text);
+}
+
+.input-wrap {
+  max-width: 520px;
+  margin: 0 auto 12px;
+  position: relative;
+}
+
+.prompt {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--safe);
+  pointer-events: none;
+}
+
+input[type="text"] {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  padding: 16px 16px 16px 36px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+input[type="text"]:focus {
+  border-color: var(--accent);
+}
+
+input[type="text"]::placeholder {
+  color: var(--muted);
+}
+
+.scan-btn {
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  display: block;
+  padding: 16px;
+  background: var(--accent);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.01em;
+}
+
+.scan-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+.scan-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+.result-wrap {
+  max-width: 520px;
+  margin: 24px auto 0;
+  display: none;
+}
+
+.result-wrap.visible { display: block; }
+
+.score-bar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 24px;
+  margin-bottom: 12px;
+}
+
+.score-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.verdict-badge {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 100px;
+  letter-spacing: 0.05em;
+}
+
+.verdict-badge.danger { background: rgba(255,59,59,0.15); color: var(--danger); border: 1px solid rgba(255,59,59,0.3); }
+.verdict-badge.warning { background: rgba(245,158,11,0.15); color: var(--warning); border: 1px solid rgba(245,158,11,0.3); }
+.verdict-badge.safe { background: rgba(16,185,129,0.15); color: var(--safe); border: 1px solid rgba(16,185,129,0.3); }
+
+.score-num {
+  font-family: var(--mono);
+  font-size: 36px;
+  font-weight: 700;
+}
+
+.score-track {
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.score-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 1s ease;
+  width: 0;
+}
+
+.token-name {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 12px;
+}
+
+.flags-preview {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin-bottom: 12px;
+}
+
+.flag-item {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.flag-item:last-child { border-bottom: none; }
+
+.more-flags {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 8px;
+}
+
+.pay-btn {
+  width: 100%;
+  padding: 16px;
+  background: transparent;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  color: var(--accent);
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 8px;
+}
+
+.pay-btn:hover {
+  background: rgba(91,124,246,0.1);
+}
+
+.pay-note {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.report-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--text);
+  white-space: pre-wrap;
+  display: none;
+  margin-bottom: 12px;
+}
+
+.report-box.visible { display: block; }
+
+.error-msg {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--danger);
+  text-align: center;
+  padding: 8px;
+  display: none;
+}
+
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.2);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.divider { border: none; border-top: 1px solid var(--border); margin: 60px auto; max-width: 520px; }
+
+.stats {
+  display: flex;
+  justify-content: center;
+  gap: 48px;
+  padding: 0 24px 80px;
+  text-align: center;
+}
+
+.stat-num {
+  font-family: var(--mono);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--danger);
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">crypto<span>safe</span>.ai</div>
+  <div class="status-dot"></div>
+</div>
+
+<div class="hero">
+  <div class="eyebrow">On-chain security scanner</div>
+  <h1>Is this token a <em>rug pull?</em></h1>
+  <p class="subtitle">Paste any contract address. Get a full security report in seconds.</p>
+
+  <div class="chain-tabs">
+    <button class="chain-tab active" data-chain="eth">ETH</button>
+    <button class="chain-tab" data-chain="bsc">BSC</button>
+    <button class="chain-tab" data-chain="base">BASE</button>
+    <button class="chain-tab" data-chain="arbitrum">ARB</button>
+    <button class="chain-tab" data-chain="solana">SOL</button>
+  </div>
+
+  <div class="input-wrap">
+    <span class="prompt">$</span>
+    <input type="text" id="addressInput" placeholder="0x... or Solana contract address">
+  </div>
+
+  <div class="error-msg" id="errorMsg"></div>
+
+  <button class="scan-btn" id="scanBtn" onclick="runScan()">
+    Scan Contract →
+  </button>
+
+  <div class="result-wrap" id="resultWrap">
+    <div class="score-bar" id="scoreBar">
+      <div class="score-header">
+        <div>
+          <div class="token-name" id="tokenName"></div>
+          <div class="score-num" id="scoreNum">—</div>
+          <div style="font-size:12px;color:var(--muted);font-family:var(--mono)">risk score</div>
+        </div>
+        <div class="verdict-badge" id="verdictBadge">SCANNING</div>
+      </div>
+      <div class="score-track">
+        <div class="score-fill" id="scoreFill"></div>
+      </div>
+    </div>
+
+    <div class="flags-preview" id="flagsPreview"></div>
+
+    <button class="pay-btn" id="payBtn" onclick="checkout()">
+      Get Full Report — $7
+    </button>
+    <div class="pay-note">Full analysis: all checks, AI verdict, recommendations</div>
+
+    <div class="report-box" id="reportBox"></div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<div class="stats">
+  <div>
+    <div class="stat-num">$2.1B</div>
+    <div class="stat-label">lost to rug pulls in 2025</div>
+  </div>
+  <div>
+    <div class="stat-num">14</div>
+    <div class="stat-label">checks per analysis</div>
+  </div>
+  <div>
+    <div class="stat-num">&lt;10s</div>
+    <div class="stat-label">scan time</div>
+  </div>
+</div>
+
+<script>
+let selectedChain = 'eth';
+let currentAddress = '';
+
+document.querySelectorAll('.chain-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.chain-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    selectedChain = tab.dataset.chain;
+  });
+});
+
+async function runScan() {
+  const input = document.getElementById('addressInput');
+  currentAddress = input.value.trim();
+  const errorMsg = document.getElementById('errorMsg');
+  const btn = document.getElementById('scanBtn');
+
+  errorMsg.style.display = 'none';
+
+  if (currentAddress.length < 30) {
+    errorMsg.textContent = 'Please enter a valid contract address';
+    errorMsg.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Scanning...';
+
+  try {
+    const res = await fetch('/api/preview', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({address: currentAddress, chain: selectedChain})
+    });
+    const data = await res.json();
+
+    document.getElementById('resultWrap').classList.add('visible');
+    document.getElementById('tokenName').textContent = data.token_name || currentAddress.slice(0, 12) + '...';
+    document.getElementById('scoreNum').textContent = data.score;
+
+    const fill = document.getElementById('scoreFill');
+    const badge = document.getElementById('verdictBadge');
+    const v = data.verdict;
+
+    if (v === 'DANGER') {
+      fill.style.background = 'var(--danger)';
+      badge.className = 'verdict-badge danger';
+    } else if (v === 'WARNING') {
+      fill.style.background = 'var(--warning)';
+      badge.className = 'verdict-badge warning';
+    } else {
+      fill.style.background = 'var(--safe)';
+      badge.className = 'verdict-badge safe';
+    }
+
+    badge.textContent = v;
+    setTimeout(() => { fill.style.width = data.score + '%'; }, 100);
+
+    const flagsEl = document.getElementById('flagsPreview');
+    if (data.top_flags && data.top_flags.length > 0) {
+      flagsEl.innerHTML = data.top_flags.map(f =>
+        `<div class="flag-item">${f.text}</div>`
+      ).join('');
+      if (data.total_flags > 2) {
+        flagsEl.innerHTML += `<div class="more-flags">+${data.total_flags - 2} more issues in full report</div>`;
+      }
+      flagsEl.style.display = 'block';
+    } else {
+      flagsEl.innerHTML = '<div class="flag-item" style="color:var(--safe)">✅ No major red flags detected in preview</div>';
+    }
+
+    document.getElementById('payBtn').style.display = 'block';
+
+  } catch(e) {
+    errorMsg.textContent = 'Error scanning contract. Try again.';
+    errorMsg.style.display = 'block';
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = 'Scan Contract →';
+}
+
+async function checkout() {
+  const btn = document.getElementById('payBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Opening checkout...';
+
+  try {
+    const res = await fetch('/api/checkout', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({address: currentAddress, chain: selectedChain})
+    });
+    const data = await res.json();
+    window.location.href = data.url;
+  } catch(e) {
+    btn.disabled = false;
+    btn.innerHTML = 'Get Full Report — $7';
+  }
+}
+
+// Handle payment success
+const params = new URLSearchParams(window.location.search);
+const sessionId = params.get('session_id');
+
+if (sessionId) {
+  document.querySelector('.hero').style.paddingTop = '40px';
+  document.getElementById('addressInput').style.display = 'none';
+  document.querySelector('.chain-tabs').style.display = 'none';
+  document.querySelector('.scan-btn').style.display = 'none';
+  document.querySelector('.eyebrow').textContent = '✅ Payment confirmed — Loading report...';
+  document.getElementById('resultWrap').classList.add('visible');
+  document.getElementById('payBtn').style.display = 'none';
+
+  fetch(`/api/report?session_id=${sessionId}`)
+    .then(r => r.json())
+    .then(data => {
+      document.querySelector('.eyebrow').textContent = 'Full security report';
+      const reportBox = document.getElementById('reportBox');
+      reportBox.textContent = data.report;
+      reportBox.classList.add('visible');
+
+      const fill = document.getElementById('scoreFill');
+      const badge = document.getElementById('verdictBadge');
+      document.getElementById('scoreNum').textContent = data.score;
+
+      if (data.score >= 60) {
+        fill.style.background = 'var(--danger)';
+        badge.className = 'verdict-badge danger';
+        badge.textContent = 'DANGER';
+      } else if (data.score >= 25) {
+        fill.style.background = 'var(--warning)';
+        badge.className = 'verdict-badge warning';
+        badge.textContent = 'WARNING';
+      } else {
+        fill.style.background = 'var(--safe)';
+        badge.className = 'verdict-badge safe';
+        badge.textContent = 'LIKELY SAFE';
+      }
+
+      setTimeout(() => { fill.style.width = data.score + '%'; }, 100);
+
+      if (data.flags && data.flags.length > 0) {
+        const flagsEl = document.getElementById('flagsPreview');
+        flagsEl.innerHTML = data.flags.map(f => `<div class="flag-item">${f.text}</div>`).join('');
+      }
+    })
+    .catch(() => {
+      document.querySelector('.eyebrow').textContent = 'Error loading report. Contact support.';
+    });
+}
+
+document.getElementById('addressInput').addEventListener('keypress', e => {
+  if (e.key === 'Enter') runScan();
+});
+</script>
+</body>
+</html>
