@@ -65,6 +65,40 @@ async def get_goplus_multi_chain(address: str, chain: str) -> tuple:
                     return result, c
     return {}, chain
 
+async def get_honeypot_data(address: str, chain: str) -> dict:
+    """HoneyPot.is — free, covers ETH + BSC, great for new tokens"""
+    HONEYPOT_CHAIN_IDS = {"eth": "1", "bsc": "56", "base": "8453", "arbitrum": "42161", "polygon": "137"}
+    chain_id = HONEYPOT_CHAIN_IDS.get(chain, "1")
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as http:
+            url = f"https://api.honeypot.is/v2/IsHoneypot?address={address}&chainID={chain_id}"
+            r = await http.get(url)
+            if r.status_code == 200:
+                return r.json()
+    except Exception as e:
+        print(f"HoneyPot.is error: {e}")
+    return {}
+
+async def get_contract_verified(address: str, chain: str) -> bool:
+    """Check if contract is verified on block explorer"""
+    EXPLORERS = {
+        "eth": f"https://api.etherscan.io/api?module=contract&action=getsourcecode&address={address}",
+        "bsc": f"https://api.bscscan.com/api?module=contract&action=getsourcecode&address={address}",
+    }
+    url = EXPLORERS.get(chain)
+    if not url:
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as http:
+            r = await http.get(url)
+            d = r.json()
+            if d.get("status") == "1" and d.get("result"):
+                source = d["result"][0].get("SourceCode", "")
+                return bool(source and source != "")
+    except:
+        pass
+    return None
+
 async def get_rugcheck_data(address: str) -> dict:
     """RugCheck.xyz API — excellent for Solana tokens"""
     try:
@@ -194,7 +228,7 @@ def _compute_cluster(pcts: list, raw_holders) -> dict:
         "total_analyzed": n
     }
 
-def calculate_risk(goplus: dict, dex: dict, rugcheck: dict, has_data: bool) -> tuple:
+def calculate_risk(goplus: dict, dex: dict, rugcheck: dict, honeypot: dict, has_data: bool) -> tuple:
     score = 0
     flags = []
 
@@ -202,6 +236,30 @@ def calculate_risk(goplus: dict, dex: dict, rugcheck: dict, has_data: bool) -> t
     if not has_data:
         score += 30
         flags.append({"level": "high", "text": "No verified security data found — unverified token carries elevated risk"})
+
+    # ─── HONEYPOT.IS CHECKS (ETH/BSC fallback) ───
+    if honeypot:
+        hp_result = honeypot.get("honeypotResult", {})
+        simulation = honeypot.get("simulationResult", {})
+        token_info = honeypot.get("token", {})
+
+        if honeypot.get("isHoneypot"):
+            score += 45
+            flags.append({"level": "critical", "text": f"HONEYPOT — {honeypot.get('honeypotReason', 'Tokens cannot be sold')}"})
+
+        sell_tax_hp = float(simulation.get("sellTax", 0) or 0)
+        buy_tax_hp = float(simulation.get("buyTax", 0) or 0)
+        if sell_tax_hp > 10:
+            score += 25
+            flags.append({"level": "critical", "text": f"Sell tax {sell_tax_hp:.1f}% — Classic rug setup"})
+        elif sell_tax_hp > 5:
+            score += 10
+            flags.append({"level": "medium", "text": f"High sell tax: {sell_tax_hp:.1f}%"})
+
+        holder_count = int(token_info.get("totalHolders", 0) or 0)
+        if holder_count < 50 and holder_count > 0:
+            score += 10
+            flags.append({"level": "medium", "text": f"Very few holders: {holder_count}"})
 
     # ─── GOPLUS CHECKS ───
     if goplus.get("is_honeypot") == "1":
@@ -320,12 +378,15 @@ async def preview(request: AnalysisRequest):
         (goplus, actual_chain), dex, rugcheck = await asyncio.gather(
             goplus_task, dex_task, get_rugcheck_data(address)
         )
+        honeypot = {}
     else:
-        (goplus, actual_chain), dex = await asyncio.gather(goplus_task, dex_task)
+        (goplus, actual_chain), dex, honeypot = await asyncio.gather(
+            goplus_task, dex_task, get_honeypot_data(address, detected_chain)
+        )
         rugcheck = {}
 
-    has_data = bool(goplus) or bool(rugcheck)
-    score, flags = calculate_risk(goplus, dex, rugcheck, has_data)
+    has_data = bool(goplus) or bool(rugcheck) or bool(honeypot)
+    score, flags = calculate_risk(goplus, dex, rugcheck, honeypot, has_data)
 
     # Cluster analysis — use best available source
     cluster = None
@@ -342,6 +403,8 @@ async def preview(request: AnalysisRequest):
         token_name = f"{name} ({symbol})" if symbol else name
     if not token_name and rugcheck:
         token_name = rugcheck.get("tokenMeta", {}).get("name", "")
+    if not token_name and honeypot:
+        token_name = honeypot.get("token", {}).get("name", "")
 
     return {
         "score": score,
@@ -398,12 +461,15 @@ async def get_report(session_id: str):
         (goplus, actual_chain), dex, rugcheck = await asyncio.gather(
             goplus_task, dex_task, get_rugcheck_data(address)
         )
+        honeypot = {}
     else:
-        (goplus, actual_chain), dex = await asyncio.gather(goplus_task, dex_task)
+        (goplus, actual_chain), dex, honeypot = await asyncio.gather(
+            goplus_task, dex_task, get_honeypot_data(address, detected_chain)
+        )
         rugcheck = {}
 
-    has_data = bool(goplus) or bool(rugcheck)
-    score, flags = calculate_risk(goplus, dex, rugcheck, has_data)
+    has_data = bool(goplus) or bool(rugcheck) or bool(honeypot)
+    score, flags = calculate_risk(goplus, dex, rugcheck, honeypot, has_data)
 
     cluster = None
     if goplus.get("holders"):
@@ -411,15 +477,18 @@ async def get_report(session_id: str):
     elif rugcheck.get("topHolders"):
         cluster = analyze_cluster_from_rugcheck(rugcheck)
 
+    # Get honeypot.is data for report
+    hp_sim = honeypot.get("simulationResult", {}) if honeypot else {}
+
     details = {
         "address": address,
         "chain": actual_chain.upper(),
         "risk_score": score,
         "has_security_data": has_data,
-        "honeypot": goplus.get("is_honeypot") == "1",
+        "honeypot": goplus.get("is_honeypot") == "1" or honeypot.get("isHoneypot", False),
         "mintable": goplus.get("is_mintable") == "1",
-        "buy_tax": f"{float(goplus.get('buy_tax', 0) or 0):.1f}%",
-        "sell_tax": f"{float(goplus.get('sell_tax', 0) or 0):.1f}%",
+        "buy_tax": f"{float(goplus.get('buy_tax', 0) or hp_sim.get('buyTax', 0) or 0):.1f}%",
+        "sell_tax": f"{float(goplus.get('sell_tax', 0) or hp_sim.get('sellTax', 0) or 0):.1f}%",
         "open_source": goplus.get("is_open_source") == "1",
         "owner_renounced": goplus.get("owner_address", "").lower() in ["", "0x0000000000000000000000000000000000000000"],
         "liquidity_usd": f"${float(dex.get('liquidity', {}).get('usd', 0) or 0):,.0f}" if dex else "N/A",
@@ -476,3 +545,171 @@ Be direct. No filler. UNKNOWN data should always be treated as risk."""},
     }
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# ─── CRYPTO PAYMENT ────────────────────────────────────────
+
+import time
+import secrets
+
+WALLET_ETH = "0x63eAbA93c1B453F2Ed4Dc00610aC98ed5B365be6"
+USDC_CONTRACT = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+MIN_USDC = 6.50  # $6.50 minimum to account for gas/slippage
+
+crypto_sessions = {}   # session_id -> {address, chain, started_at, paid}
+used_tx_hashes = set() # prevent double-use
+
+class CryptoSessionRequest(BaseModel):
+    address: str
+    chain: str
+
+@app.post("/api/crypto-session")
+async def create_crypto_session(request: CryptoSessionRequest):
+    session_id = secrets.token_urlsafe(32)
+    crypto_sessions[session_id] = {
+        "address": request.address,
+        "chain": request.chain,
+        "started_at": int(time.time()),
+        "paid": False,
+        "tx_hash": None
+    }
+    return {
+        "session_id": session_id,
+        "wallet": WALLET_ETH,
+        "amount_usdc": 7,
+        "expires_in": 600  # 10 minutes
+    }
+
+async def check_usdc_on_chain(since_timestamp: int) -> tuple:
+    """Check Etherscan for USDC transfers to our wallet"""
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as http:
+            url = (
+                f"https://api.etherscan.io/api"
+                f"?module=account&action=tokentx"
+                f"&contractaddress={USDC_CONTRACT}"
+                f"&address={WALLET_ETH}"
+                f"&sort=desc"
+            )
+            r = await http.get(url)
+            data = r.json()
+            if data.get("status") == "1" and data.get("result"):
+                for tx in data["result"]:
+                    tx_time = int(tx.get("timeStamp", 0))
+                    tx_hash = tx.get("hash", "")
+                    to_addr = tx.get("to", "").lower()
+
+                    if (tx_time >= since_timestamp - 60 and
+                        tx_hash not in used_tx_hashes and
+                        to_addr == WALLET_ETH.lower()):
+                        # USDC has 6 decimals
+                        amount = int(tx.get("value", 0)) / 1_000_000
+                        if amount >= MIN_USDC:
+                            return True, tx_hash
+    except Exception as e:
+        print(f"Etherscan error: {e}")
+    return False, None
+
+@app.get("/api/check-payment")
+async def check_payment(session_id: str):
+    session = crypto_sessions.get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Already paid
+    if session["paid"]:
+        return {"paid": True, "session_id": session_id}
+
+    # Expired (10 min)
+    if int(time.time()) - session["started_at"] > 600:
+        return {"paid": False, "expired": True}
+
+    # Check on-chain
+    paid, tx_hash = await check_usdc_on_chain(session["started_at"])
+    if paid:
+        session["paid"] = True
+        session["tx_hash"] = tx_hash
+        used_tx_hashes.add(tx_hash)
+        return {"paid": True, "session_id": session_id}
+
+    return {"paid": False, "expired": False}
+
+@app.get("/api/crypto-report")
+async def get_crypto_report(session_id: str):
+    session = crypto_sessions.get(session_id)
+    if not session or not session["paid"]:
+        raise HTTPException(status_code=402, detail="Payment required")
+
+    address = session["address"]
+    chain = session["chain"]
+    detected_chain = auto_detect_chain(address, chain)
+
+    import asyncio
+    goplus_task = get_goplus_multi_chain(address, detected_chain)
+    dex_task = get_dexscreener_data(address)
+
+    if detected_chain == "solana":
+        (goplus, actual_chain), dex, rugcheck = await asyncio.gather(
+            goplus_task, dex_task, get_rugcheck_data(address)
+        )
+    else:
+        (goplus, actual_chain), dex = await asyncio.gather(goplus_task, dex_task)
+        rugcheck = {}
+
+    has_data = bool(goplus) or bool(rugcheck)
+    score, flags = calculate_risk(goplus, dex, rugcheck, has_data)
+
+    cluster = None
+    if goplus.get("holders"):
+        cluster = analyze_cluster_from_goplus(goplus["holders"])
+    elif rugcheck.get("topHolders"):
+        cluster = analyze_cluster_from_rugcheck(rugcheck)
+
+    details = {
+        "address": address, "chain": actual_chain.upper(),
+        "risk_score": score, "has_security_data": has_data,
+        "honeypot": goplus.get("is_honeypot") == "1",
+        "mintable": goplus.get("is_mintable") == "1",
+        "buy_tax": f"{float(goplus.get('buy_tax', 0) or 0):.1f}%",
+        "sell_tax": f"{float(goplus.get('sell_tax', 0) or 0):.1f}%",
+        "open_source": goplus.get("is_open_source") == "1",
+        "owner_renounced": goplus.get("owner_address", "").lower() in ["", "0x0000000000000000000000000000000000000000"],
+        "liquidity_usd": f"${float(dex.get('liquidity', {}).get('usd', 0) or 0):,.0f}" if dex else "N/A",
+        "liquidity_lock": check_liquidity_lock(goplus, rugcheck),
+        "cluster": cluster,
+        "red_flags": [f["text"] for f in flags]
+    }
+
+    ai = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": """You are a professional crypto security auditor.
+Analyze this token and produce a security report:
+
+━━━ VERDICT ━━━
+[SAFE / WARNING / DANGER]
+Risk Score: X/100
+
+━━━ SECURITY CHECKS ━━━
+Security Data:     [AVAILABLE/NOT AVAILABLE]
+Honeypot Test:     [PASS/FAIL/UNKNOWN]
+Mint Authority:    [REVOKED/ACTIVE/UNKNOWN]
+Buy Tax:           [X%/UNKNOWN]
+Sell Tax:          [X%/UNKNOWN]
+Contract:          [VERIFIED/UNVERIFIED/UNKNOWN]
+Liquidity:         [$X/UNKNOWN]
+Liquidity Lock:    [LOCKED/NOT LOCKED/UNKNOWN]
+
+━━━ RED FLAGS ━━━
+[🔴 critical, 🟡 medium, ✅ ok]
+
+━━━ ANALYSIS ━━━
+[2-3 sentences specific to this token]
+
+━━━ RECOMMENDATION ━━━
+[Clear buy/avoid/caution advice]"""},
+            {"role": "user", "content": json.dumps(details, default=str)}
+        ],
+        max_tokens=500
+    )
+
+    return {"report": ai.choices[0].message.content, "score": score, "flags": flags}
