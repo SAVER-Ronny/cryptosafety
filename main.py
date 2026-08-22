@@ -88,6 +88,29 @@ async def get_dexscreener_data(address: str) -> dict:
         print(f"DexScreener error: {e}")
     return {}
 
+KNOWN_LOCKERS = ["dead", "unicrypt", "team.finance", "pinksale", "mudra", "deeplock", "uncx", "pinklock"]
+
+def check_liquidity_lock(goplus: dict) -> str:
+    lp_holders = goplus.get("lp_holders", [])
+    if not lp_holders:
+        return "⚠️ Unknown — LP data not available"
+    total_locked = 0.0
+    for h in lp_holders:
+        address = h.get("address", "").lower()
+        tag = h.get("tag", "").lower()
+        pct = float(h.get("percent", 0)) * 100
+        is_locked = h.get("is_locked", 0)
+        is_dead = "dead" in address or address == "0x0000000000000000000000000000000000000000"
+        is_locker = any(l in tag for l in KNOWN_LOCKERS) or is_dead
+        if is_locked == 1 or is_locker:
+            total_locked += pct
+    if total_locked >= 80:
+        return f"✅ LOCKED ({total_locked:.0f}% of LP)"
+    elif total_locked > 0:
+        return f"⚠️ PARTIAL ({total_locked:.0f}% of LP locked)"
+    else:
+        return "🔴 NOT LOCKED"
+
 def calculate_risk(goplus: dict, dex: dict) -> tuple:
     score = 0
     flags = []
@@ -140,6 +163,17 @@ def calculate_risk(goplus: dict, dex: dict) -> tuple:
         elif liq < 50000:
             score += 10
             flags.append({"level": "medium", "text": f"Low liquidity: ${liq:,.0f}"})
+
+    # Liquidity lock check
+    lock_status = check_liquidity_lock(goplus)
+    if "NOT LOCKED" in lock_status:
+        score += 20
+        flags.append({"level": "critical", "text": f"Liquidity {lock_status} — Dev can rug anytime"})
+    elif "PARTIAL" in lock_status:
+        score += 10
+        flags.append({"level": "medium", "text": f"Liquidity {lock_status}"})
+    else:
+        flags.append({"level": "safe", "text": f"Liquidity {lock_status}"})
 
     return min(score, 100), flags
 
@@ -241,6 +275,7 @@ async def get_report(session_id: str):
         ],
         "liquidity_usd": f"${float(dex.get('liquidity', {}).get('usd', 0) or 0):,.0f}" if dex else "N/A",
         "volume_24h": f"${float(dex.get('volume', {}).get('h24', 0) or 0):,.0f}" if dex else "N/A",
+        "liquidity_lock": check_liquidity_lock(goplus),
         "red_flags": [f["text"] for f in flags]
     }
 
@@ -262,6 +297,7 @@ Sell Tax:          [X%]
 Contract:          [VERIFIED/UNVERIFIED]
 Owner Renounced:   [YES/NO]
 Liquidity:         [$X]
+Liquidity Lock:    [LOCKED/NOT LOCKED/PARTIAL]
 
 ━━━ RED FLAGS ━━━
 [List each flag with emoji: 🔴 critical, 🟡 medium, ✅ ok]
