@@ -3,25 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CryptoSafe — Rug Pull Detector</title>
-<meta name="description" content="Instant AI-powered rug pull detection. Paste any contract address and get a full security analysis in seconds.">
+<title>CryptoSafety — Rug Pull Detector</title>
+<meta name="description" content="Instant AI-powered rug pull detection. Paste any contract address and get a full security report in seconds.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg: #080A0D;
-  --surface: #0E1117;
-  --border: #1C2130;
-  --text: #E8EAF0;
-  --muted: #4A5568;
-  --danger: #FF3B3B;
-  --warning: #F59E0B;
-  --safe: #10B981;
-  --accent: #5B7CF6;
+  --bg: #060709;
+  --surface: #0C0E12;
+  --surface2: #111318;
+  --border: #1A1E28;
+  --text: #ECEEF2;
+  --muted: #454D60;
+  --danger: #FF3535;
+  --warning: #F5A623;
+  --safe: #00C48C;
+  --accent: #6B7CF0;
   --mono: 'JetBrains Mono', monospace;
-  --sans: 'Inter', sans-serif;
+  --sans: 'Space Grotesk', sans-serif;
 }
 
 body {
@@ -29,574 +30,697 @@ body {
   color: var(--text);
   font-family: var(--sans);
   min-height: 100vh;
-  line-height: 1.6;
+  overflow-x: hidden;
 }
 
+/* Grid background */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: 
+    linear-gradient(rgba(107,124,240,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(107,124,240,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Alert ticker */
+.ticker {
+  background: rgba(255,53,53,0.08);
+  border-bottom: 1px solid rgba(255,53,53,0.15);
+  padding: 8px 0;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+}
+
+.ticker-inner {
+  display: flex;
+  gap: 48px;
+  animation: ticker 30s linear infinite;
+  white-space: nowrap;
+}
+
+.ticker-item {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--danger);
+  opacity: 0.8;
+  letter-spacing: 0.05em;
+}
+
+.ticker-item span { color: var(--muted); margin: 0 8px; }
+
+@keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+/* Header */
 .header {
   border-bottom: 1px solid var(--border);
-  padding: 16px 24px;
+  padding: 14px 24px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  position: relative;
+  z-index: 1;
+  backdrop-filter: blur(10px);
 }
 
 .logo {
   font-family: var(--mono);
   font-weight: 700;
-  font-size: 15px;
-  color: var(--text);
+  font-size: 14px;
   letter-spacing: -0.02em;
 }
 
-.logo span {
+.logo .green { color: var(--safe); }
+.logo .dim { color: var(--muted); }
+
+.live-badge {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 10px;
   color: var(--safe);
+  letter-spacing: 0.1em;
 }
 
-.status-dot {
-  width: 6px;
-  height: 6px;
+.live-dot {
+  width: 5px; height: 5px;
   border-radius: 50%;
   background: var(--safe);
-  margin-left: auto;
-  box-shadow: 0 0 6px var(--safe);
-  animation: pulse 2s infinite;
+  box-shadow: 0 0 8px var(--safe);
+  animation: blink 1.5s infinite;
 }
 
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
-}
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
+/* Hero */
 .hero {
-  max-width: 680px;
+  max-width: 640px;
   margin: 0 auto;
-  padding: 64px 24px 0;
+  padding: 72px 24px 0;
   text-align: center;
+  position: relative;
+  z-index: 1;
 }
 
-.eyebrow {
+.threat-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,53,53,0.1);
+  border: 1px solid rgba(255,53,53,0.2);
+  border-radius: 100px;
+  padding: 6px 14px;
   font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.15em;
-  color: var(--muted);
+  font-size: 10px;
+  color: var(--danger);
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  margin-bottom: 20px;
+  margin-bottom: 28px;
+}
+
+.threat-pulse {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--danger);
+  animation: blink 1s infinite;
 }
 
 h1 {
-  font-size: clamp(28px, 5vw, 48px);
-  font-weight: 600;
-  letter-spacing: -0.03em;
-  line-height: 1.1;
+  font-size: clamp(32px, 6vw, 58px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  margin-bottom: 18px;
+}
+
+h1 .red { color: var(--danger); }
+h1 .dim { color: var(--muted); }
+
+.sub {
+  font-size: 16px;
+  color: var(--muted);
+  margin-bottom: 48px;
+  line-height: 1.6;
+}
+
+/* Scanner */
+.scanner {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
   margin-bottom: 16px;
 }
 
-h1 em {
-  font-style: normal;
-  color: var(--danger);
-}
-
-.subtitle {
-  color: var(--muted);
-  font-size: 16px;
-  margin-bottom: 48px;
-}
-
-.chain-tabs {
+.chain-row {
   display: flex;
   gap: 4px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 4px;
   margin-bottom: 12px;
-  max-width: 520px;
-  margin-left: auto;
-  margin-right: auto;
 }
 
-.chain-tab {
+.chain-btn {
   flex: 1;
-  padding: 8px;
-  border: none;
+  padding: 8px 4px;
   background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
   color: var(--muted);
   font-family: var(--mono);
-  font-size: 12px;
-  cursor: pointer;
-  border-radius: 5px;
-  transition: all 0.15s;
+  font-size: 11px;
   font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.05em;
 }
 
-.chain-tab.active {
-  background: var(--border);
+.chain-btn.active {
+  border-color: var(--accent);
   color: var(--text);
+  background: rgba(107,124,240,0.1);
 }
 
-.chain-tab:hover:not(.active) {
-  color: var(--text);
+.chain-btn:hover:not(.active) { border-color: var(--muted); color: var(--text); }
+
+.input-row {
+  display: flex;
+  gap: 10px;
 }
 
-.input-wrap {
-  max-width: 520px;
-  margin: 0 auto 12px;
-  position: relative;
-}
-
-.prompt {
-  position: absolute;
-  left: 16px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-family: var(--mono);
-  font-size: 14px;
-  color: var(--safe);
-  pointer-events: none;
-}
-
-input[type="text"] {
-  width: 100%;
-  background: var(--surface);
+.addr-input {
+  flex: 1;
+  background: var(--surface2);
   border: 1px solid var(--border);
   border-radius: 8px;
   color: var(--text);
   font-family: var(--mono);
   font-size: 13px;
-  padding: 16px 16px 16px 36px;
+  padding: 14px 16px;
   outline: none;
   transition: border-color 0.2s;
+  min-width: 0;
 }
 
-input[type="text"]:focus {
-  border-color: var(--accent);
-}
-
-input[type="text"]::placeholder {
-  color: var(--muted);
-}
+.addr-input:focus { border-color: var(--accent); }
+.addr-input::placeholder { color: var(--muted); }
 
 .scan-btn {
+  padding: 14px 24px;
+  background: linear-gradient(135deg, #FF3535, #FF6B35);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+
+.scan-btn:hover { filter: brightness(1.1); transform: translateY(-1px); box-shadow: 0 4px 20px rgba(255,53,53,0.3); }
+.scan-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+.error-msg {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--danger);
+  margin-top: 10px;
+  display: none;
+}
+
+/* Results */
+.results {
+  display: none;
+  margin-top: 16px;
+}
+
+.results.visible { display: block; }
+
+.score-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.score-ring {
+  width: 80px;
+  height: 80px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.score-ring svg { transform: rotate(-90deg); }
+
+.score-ring-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.score-ring-num {
+  font-family: var(--mono);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.score-ring-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.score-info { flex: 1; min-width: 0; }
+
+.verdict {
+  font-family: var(--mono);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.verdict.danger { color: var(--danger); }
+.verdict.warning { color: var(--warning); }
+.verdict.safe { color: var(--safe); }
+
+.token-id {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.flags-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 10px;
+}
+
+.flags-title {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.flag-row {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text);
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+  line-height: 1.4;
+}
+
+.flag-row:last-child { border-bottom: none; }
+
+.more-flags {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 10px;
+}
+
+.pay-card {
+  background: linear-gradient(135deg, rgba(107,124,240,0.08), rgba(107,124,240,0.03));
+  border: 1px solid rgba(107,124,240,0.2);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.pay-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.pay-desc {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 16px;
+  font-family: var(--mono);
+  line-height: 1.6;
+}
+
+.pay-btn {
   width: 100%;
-  max-width: 520px;
-  margin: 0 auto;
-  display: block;
-  padding: 16px;
+  padding: 14px;
   background: var(--accent);
   border: none;
   border-radius: 8px;
   color: #fff;
   font-family: var(--sans);
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 700;
   cursor: pointer;
   transition: all 0.2s;
-  letter-spacing: 0.01em;
 }
 
-.scan-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
-.scan-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.pay-btn:hover { filter: brightness(1.1); }
+.pay-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.result-wrap {
-  max-width: 520px;
-  margin: 24px auto 0;
-  display: none;
-}
-
-.result-wrap.visible { display: block; }
-
-.score-bar {
+.report-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 24px;
-  margin-bottom: 12px;
-}
-
-.score-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-
-.verdict-badge {
-  font-family: var(--mono);
-  font-size: 13px;
-  font-weight: 700;
-  padding: 6px 14px;
-  border-radius: 100px;
-  letter-spacing: 0.05em;
-}
-
-.verdict-badge.danger { background: rgba(255,59,59,0.15); color: var(--danger); border: 1px solid rgba(255,59,59,0.3); }
-.verdict-badge.warning { background: rgba(245,158,11,0.15); color: var(--warning); border: 1px solid rgba(245,158,11,0.3); }
-.verdict-badge.safe { background: rgba(16,185,129,0.15); color: var(--safe); border: 1px solid rgba(16,185,129,0.3); }
-
-.score-num {
-  font-family: var(--mono);
-  font-size: 36px;
-  font-weight: 700;
-}
-
-.score-track {
-  height: 6px;
-  background: var(--border);
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.score-fill {
-  height: 100%;
-  border-radius: 3px;
-  transition: width 1s ease;
-  width: 0;
-}
-
-.token-name {
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--muted);
-  margin-top: 12px;
-}
-
-.flags-preview {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 16px 20px;
-  margin-bottom: 12px;
-}
-
-.flag-item {
-  font-family: var(--mono);
-  font-size: 13px;
-  color: var(--text);
-  padding: 6px 0;
-  border-bottom: 1px solid var(--border);
-}
-
-.flag-item:last-child { border-bottom: none; }
-
-.more-flags {
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--muted);
-  margin-top: 8px;
-}
-
-.pay-btn {
-  width: 100%;
-  padding: 16px;
-  background: transparent;
-  border: 1px solid var(--accent);
-  border-radius: 8px;
-  color: var(--accent);
-  font-family: var(--sans);
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  margin-bottom: 8px;
-}
-
-.pay-btn:hover {
-  background: rgba(91,124,246,0.1);
-}
-
-.pay-note {
-  font-size: 12px;
-  color: var(--muted);
-  text-align: center;
-}
-
-.report-box {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 20px;
   font-family: var(--mono);
-  font-size: 13px;
-  line-height: 1.8;
+  font-size: 12px;
+  line-height: 1.9;
   color: var(--text);
   white-space: pre-wrap;
   display: none;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
-.report-box.visible { display: block; }
+.report-card.visible { display: block; }
 
-.error-msg {
-  font-family: var(--mono);
-  font-size: 13px;
-  color: var(--danger);
+/* Stats */
+.stats-row {
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  margin: 60px auto;
+  max-width: 600px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+}
+
+.stat {
+  flex: 1;
+  padding: 24px 16px;
   text-align: center;
-  padding: 8px;
-  display: none;
+  border-right: 1px solid var(--border);
 }
 
+.stat:last-child { border-right: none; }
+
+.stat-num {
+  font-family: var(--mono);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--danger);
+  margin-bottom: 4px;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* Spinner */
 .spinner {
   display: inline-block;
-  width: 16px;
-  height: 16px;
+  width: 14px; height: 14px;
   border: 2px solid rgba(255,255,255,0.2);
   border-top-color: #fff;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
   vertical-align: middle;
-  margin-right: 8px;
+  margin-right: 6px;
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
-
-.divider { border: none; border-top: 1px solid var(--border); margin: 60px auto; max-width: 520px; }
-
-.stats {
-  display: flex;
-  justify-content: center;
-  gap: 48px;
-  padding: 0 24px 80px;
-  text-align: center;
-}
-
-.stat-num {
-  font-family: var(--mono);
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--danger);
-}
-
-.stat-label {
-  font-size: 12px;
-  color: var(--muted);
-  margin-top: 4px;
-}
 </style>
 </head>
 <body>
 
-<div class="header">
-  <div class="logo">crypto<span>safe</span>.ai</div>
-  <div class="status-dot"></div>
+<!-- Ticker -->
+<div class="ticker">
+  <div class="ticker-inner" id="ticker">
+    <span class="ticker-item">⚠ DOGE2025 <span>·</span> HONEYPOT DETECTED <span>·</span> $180K at risk</span>
+    <span class="ticker-item">⚠ PEPE3X <span>·</span> SELL TAX 99% <span>·</span> BSC</span>
+    <span class="ticker-item">⚠ SAFEMOON2 <span>·</span> MINT NOT REVOKED <span>·</span> ETH</span>
+    <span class="ticker-item">✓ WBTC <span>·</span> VERIFIED SAFE <span>·</span> ETH</span>
+    <span class="ticker-item">⚠ TURBO888 <span>·</span> TOP HOLDER 67% <span>·</span> BASE</span>
+    <span class="ticker-item">⚠ DOGE2025 <span>·</span> HONEYPOT DETECTED <span>·</span> $180K at risk</span>
+    <span class="ticker-item">⚠ PEPE3X <span>·</span> SELL TAX 99% <span>·</span> BSC</span>
+    <span class="ticker-item">⚠ SAFEMOON2 <span>·</span> MINT NOT REVOKED <span>·</span> ETH</span>
+    <span class="ticker-item">✓ WBTC <span>·</span> VERIFIED SAFE <span>·</span> ETH</span>
+    <span class="ticker-item">⚠ TURBO888 <span>·</span> TOP HOLDER 67% <span>·</span> BASE</span>
+  </div>
 </div>
 
+<!-- Header -->
+<div class="header">
+  <div class="logo">crypto<span class="green">safety</span><span class="dim">.tech</span></div>
+  <div class="live-badge">
+    <div class="live-dot"></div>
+    LIVE
+  </div>
+</div>
+
+<!-- Hero -->
 <div class="hero">
-  <div class="eyebrow">On-chain security scanner</div>
-  <h1>Is this token a <em>rug pull?</em></h1>
-  <p class="subtitle">Paste any contract address. Get a full security report in seconds.</p>
-
-  <div class="chain-tabs">
-    <button class="chain-tab active" data-chain="eth">ETH</button>
-    <button class="chain-tab" data-chain="bsc">BSC</button>
-    <button class="chain-tab" data-chain="base">BASE</button>
-    <button class="chain-tab" data-chain="arbitrum">ARB</button>
-    <button class="chain-tab" data-chain="solana">SOL</button>
+  <div class="threat-label">
+    <div class="threat-pulse"></div>
+    Threat Detection Active
   </div>
 
-  <div class="input-wrap">
-    <span class="prompt">$</span>
-    <input type="text" id="addressInput" placeholder="0x... or Solana contract address">
+  <h1>Is this token a<br><span class="red">rug pull?</span></h1>
+  <p class="sub">Paste any contract address.<br>AI-powered security report in under 10 seconds.</p>
+
+  <div class="scanner">
+    <div class="chain-row">
+      <button class="chain-btn active" data-chain="eth">ETH</button>
+      <button class="chain-btn" data-chain="bsc">BSC</button>
+      <button class="chain-btn" data-chain="base">BASE</button>
+      <button class="chain-btn" data-chain="arbitrum">ARB</button>
+      <button class="chain-btn" data-chain="solana">SOL</button>
+    </div>
+    <div class="input-row">
+      <input class="addr-input" id="addressInput" type="text" placeholder="0x... contract address">
+      <button class="scan-btn" id="scanBtn" onclick="runScan()">Scan →</button>
+    </div>
+    <div class="error-msg" id="errorMsg"></div>
   </div>
 
-  <div class="error-msg" id="errorMsg"></div>
-
-  <button class="scan-btn" id="scanBtn" onclick="runScan()">
-    Scan Contract →
-  </button>
-
-  <div class="result-wrap" id="resultWrap">
-    <div class="score-bar" id="scoreBar">
-      <div class="score-header">
-        <div>
-          <div class="token-name" id="tokenName"></div>
-          <div class="score-num" id="scoreNum">—</div>
-          <div style="font-size:12px;color:var(--muted);font-family:var(--mono)">risk score</div>
+  <div class="results" id="results">
+    <div class="score-card" id="scoreCard">
+      <div class="score-ring">
+        <svg width="80" height="80" viewBox="0 0 80 80">
+          <circle cx="40" cy="40" r="32" fill="none" stroke="#1A1E28" stroke-width="6"/>
+          <circle cx="40" cy="40" r="32" fill="none" stroke="#FF3535" stroke-width="6"
+            stroke-dasharray="201" stroke-dashoffset="201" id="scoreCircle"
+            stroke-linecap="round" style="transition: stroke-dashoffset 1s ease"/>
+        </svg>
+        <div class="score-ring-text">
+          <div class="score-ring-num" id="scoreNum">—</div>
+          <div class="score-ring-label">RISK</div>
         </div>
-        <div class="verdict-badge" id="verdictBadge">SCANNING</div>
       </div>
-      <div class="score-track">
-        <div class="score-fill" id="scoreFill"></div>
+      <div class="score-info">
+        <div class="verdict" id="verdict">SCANNING...</div>
+        <div class="token-id" id="tokenId"></div>
       </div>
     </div>
 
-    <div class="flags-preview" id="flagsPreview"></div>
+    <div class="flags-card" id="flagsCard" style="display:none">
+      <div class="flags-title">⚠ Issues found</div>
+      <div id="flagsList"></div>
+      <div class="more-flags" id="moreFlags"></div>
+    </div>
 
-    <button class="pay-btn" id="payBtn" onclick="checkout()">
-      Get Full Report — $7
-    </button>
-    <div class="pay-note">Full analysis: all checks, AI verdict, recommendations</div>
+    <div class="pay-card" id="payCard" style="display:none">
+      <div class="pay-title">Full Security Report — $7</div>
+      <div class="pay-desc">
+        All 14 checks · AI verdict · Honeypot · Liquidity lock<br>
+        Mint status · Holder analysis · Recommendations
+      </div>
+      <button class="pay-btn" id="payBtn" onclick="checkout()">
+        Get Full Report →
+      </button>
+    </div>
 
-    <div class="report-box" id="reportBox"></div>
+    <div class="report-card" id="reportCard"></div>
   </div>
 </div>
 
-<hr class="divider">
-
-<div class="stats">
-  <div>
+<!-- Stats -->
+<div class="stats-row">
+  <div class="stat">
     <div class="stat-num">$2.1B</div>
-    <div class="stat-label">lost to rug pulls in 2025</div>
+    <div class="stat-label">lost to rugs in 2025</div>
   </div>
-  <div>
+  <div class="stat">
     <div class="stat-num">14</div>
-    <div class="stat-label">checks per analysis</div>
+    <div class="stat-label">checks per scan</div>
   </div>
-  <div>
+  <div class="stat">
     <div class="stat-num">&lt;10s</div>
     <div class="stat-label">scan time</div>
+  </div>
+  <div class="stat">
+    <div class="stat-num">$7</div>
+    <div class="stat-label">full report</div>
   </div>
 </div>
 
 <script>
-let selectedChain = 'eth';
+let chain = 'eth';
 let currentAddress = '';
 
-document.querySelectorAll('.chain-tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.chain-tab').forEach(t => t.classList.remove('active'));
-    tab.classList.add('active');
-    selectedChain = tab.dataset.chain;
+document.querySelectorAll('.chain-btn').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.chain-btn').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    chain = b.dataset.chain;
   });
 });
 
 async function runScan() {
-  const input = document.getElementById('addressInput');
-  currentAddress = input.value.trim();
-  const errorMsg = document.getElementById('errorMsg');
+  currentAddress = document.getElementById('addressInput').value.trim();
+  const errEl = document.getElementById('errorMsg');
   const btn = document.getElementById('scanBtn');
-
-  errorMsg.style.display = 'none';
+  errEl.style.display = 'none';
 
   if (currentAddress.length < 30) {
-    errorMsg.textContent = 'Please enter a valid contract address';
-    errorMsg.style.display = 'block';
+    errEl.textContent = 'Enter a valid contract address';
+    errEl.style.display = 'block';
     return;
   }
 
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span>Scanning...';
+  document.getElementById('results').classList.add('visible');
+  document.getElementById('flagsCard').style.display = 'none';
+  document.getElementById('payCard').style.display = 'none';
+  document.getElementById('verdict').textContent = 'SCANNING...';
+  document.getElementById('verdict').className = 'verdict';
+  document.getElementById('scoreNum').textContent = '—';
+  document.getElementById('tokenId').textContent = currentAddress.slice(0,12) + '...';
 
   try {
     const res = await fetch('/api/preview', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({address: currentAddress, chain: selectedChain})
+      body: JSON.stringify({address: currentAddress, chain})
     });
-    const data = await res.json();
+    const d = await res.json();
 
-    document.getElementById('resultWrap').classList.add('visible');
-    document.getElementById('tokenName').textContent = data.token_name || currentAddress.slice(0, 12) + '...';
-    document.getElementById('scoreNum').textContent = data.score;
+    document.getElementById('scoreNum').textContent = d.score;
 
-    const fill = document.getElementById('scoreFill');
-    const badge = document.getElementById('verdictBadge');
-    const v = data.verdict;
+    const circle = document.getElementById('scoreCircle');
+    const circumference = 201;
+    const offset = circumference - (d.score / 100) * circumference;
+    
+    let color = '#00C48C';
+    let cls = 'safe';
+    if (d.score >= 60) { color = '#FF3535'; cls = 'danger'; }
+    else if (d.score >= 25) { color = '#F5A623'; cls = 'warning'; }
+    
+    circle.style.stroke = color;
+    setTimeout(() => { circle.style.strokeDashoffset = offset; }, 100);
 
-    if (v === 'DANGER') {
-      fill.style.background = 'var(--danger)';
-      badge.className = 'verdict-badge danger';
-    } else if (v === 'WARNING') {
-      fill.style.background = 'var(--warning)';
-      badge.className = 'verdict-badge warning';
-    } else {
-      fill.style.background = 'var(--safe)';
-      badge.className = 'verdict-badge safe';
-    }
+    const verdictEl = document.getElementById('verdict');
+    verdictEl.textContent = d.verdict;
+    verdictEl.className = `verdict ${cls}`;
 
-    badge.textContent = v;
-    setTimeout(() => { fill.style.width = data.score + '%'; }, 100);
+    if (d.token_name) document.getElementById('tokenId').textContent = d.token_name;
 
-    const flagsEl = document.getElementById('flagsPreview');
-    if (data.top_flags && data.top_flags.length > 0) {
-      flagsEl.innerHTML = data.top_flags.map(f =>
-        `<div class="flag-item">${f.text}</div>`
+    if (d.top_flags && d.top_flags.length > 0) {
+      document.getElementById('flagsList').innerHTML = d.top_flags.map(f =>
+        `<div class="flag-row">${f.text}</div>`
       ).join('');
-      if (data.total_flags > 2) {
-        flagsEl.innerHTML += `<div class="more-flags">+${data.total_flags - 2} more issues in full report</div>`;
+      if (d.total_flags > 2) {
+        document.getElementById('moreFlags').textContent = `+${d.total_flags - 2} more issues in full report`;
       }
-      flagsEl.style.display = 'block';
-    } else {
-      flagsEl.innerHTML = '<div class="flag-item" style="color:var(--safe)">✅ No major red flags detected in preview</div>';
+      document.getElementById('flagsCard').style.display = 'block';
     }
 
-    document.getElementById('payBtn').style.display = 'block';
+    document.getElementById('payCard').style.display = 'block';
 
   } catch(e) {
-    errorMsg.textContent = 'Error scanning contract. Try again.';
-    errorMsg.style.display = 'block';
+    errEl.textContent = 'Scan failed. Try again.';
+    errEl.style.display = 'block';
   }
 
   btn.disabled = false;
-  btn.innerHTML = 'Scan Contract →';
+  btn.innerHTML = 'Scan →';
 }
 
 async function checkout() {
   const btn = document.getElementById('payBtn');
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>Opening checkout...';
-
+  btn.innerHTML = '<span class="spinner"></span>Opening...';
   try {
     const res = await fetch('/api/checkout', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({address: currentAddress, chain: selectedChain})
+      body: JSON.stringify({address: currentAddress, chain})
     });
-    const data = await res.json();
-    window.location.href = data.url;
+    const d = await res.json();
+    window.location.href = d.url;
   } catch(e) {
     btn.disabled = false;
-    btn.innerHTML = 'Get Full Report — $7';
+    btn.innerHTML = 'Get Full Report →';
   }
 }
 
-// Handle payment success
-const params = new URLSearchParams(window.location.search);
-const sessionId = params.get('session_id');
-
-if (sessionId) {
+// Success page
+const sid = new URLSearchParams(window.location.search).get('session_id');
+if (sid) {
   document.querySelector('.hero').style.paddingTop = '40px';
-  document.getElementById('addressInput').style.display = 'none';
-  document.querySelector('.chain-tabs').style.display = 'none';
-  document.querySelector('.scan-btn').style.display = 'none';
-  document.querySelector('.eyebrow').textContent = '✅ Payment confirmed — Loading report...';
-  document.getElementById('resultWrap').classList.add('visible');
-  document.getElementById('payBtn').style.display = 'none';
+  document.querySelector('.scanner').style.display = 'none';
+  document.querySelector('h1').textContent = 'Your Security Report';
+  document.querySelector('.sub').textContent = 'Full AI-powered analysis below';
+  document.querySelector('.threat-label').textContent = '✅ Payment confirmed';
+  document.getElementById('results').classList.add('visible');
+  document.getElementById('payCard').style.display = 'none';
+  document.getElementById('verdict').textContent = 'LOADING...';
 
-  fetch(`/api/report?session_id=${sessionId}`)
+  fetch(`/api/report?session_id=${sid}`)
     .then(r => r.json())
-    .then(data => {
-      document.querySelector('.eyebrow').textContent = 'Full security report';
-      const reportBox = document.getElementById('reportBox');
-      reportBox.textContent = data.report;
-      reportBox.classList.add('visible');
+    .then(d => {
+      document.getElementById('scoreNum').textContent = d.score;
+      const circle = document.getElementById('scoreCircle');
+      let color = '#00C48C'; let cls = 'safe';
+      if (d.score >= 60) { color = '#FF3535'; cls = 'danger'; }
+      else if (d.score >= 25) { color = '#F5A623'; cls = 'warning'; }
+      circle.style.stroke = color;
+      setTimeout(() => { circle.style.strokeDashoffset = 201 - (d.score/100)*201; }, 100);
+      const v = document.getElementById('verdict');
+      v.textContent = d.score >= 60 ? 'DANGER' : d.score >= 25 ? 'WARNING' : 'LIKELY SAFE';
+      v.className = `verdict ${cls}`;
 
-      const fill = document.getElementById('scoreFill');
-      const badge = document.getElementById('verdictBadge');
-      document.getElementById('scoreNum').textContent = data.score;
-
-      if (data.score >= 60) {
-        fill.style.background = 'var(--danger)';
-        badge.className = 'verdict-badge danger';
-        badge.textContent = 'DANGER';
-      } else if (data.score >= 25) {
-        fill.style.background = 'var(--warning)';
-        badge.className = 'verdict-badge warning';
-        badge.textContent = 'WARNING';
-      } else {
-        fill.style.background = 'var(--safe)';
-        badge.className = 'verdict-badge safe';
-        badge.textContent = 'LIKELY SAFE';
+      if (d.flags && d.flags.length > 0) {
+        document.getElementById('flagsList').innerHTML = d.flags.map(f =>
+          `<div class="flag-row">${f.text}</div>`
+        ).join('');
+        document.getElementById('flagsCard').style.display = 'block';
       }
 
-      setTimeout(() => { fill.style.width = data.score + '%'; }, 100);
-
-      if (data.flags && data.flags.length > 0) {
-        const flagsEl = document.getElementById('flagsPreview');
-        flagsEl.innerHTML = data.flags.map(f => `<div class="flag-item">${f.text}</div>`).join('');
-      }
-    })
-    .catch(() => {
-      document.querySelector('.eyebrow').textContent = 'Error loading report. Contact support.';
+      const rc = document.getElementById('reportCard');
+      rc.textContent = d.report;
+      rc.classList.add('visible');
     });
 }
 
