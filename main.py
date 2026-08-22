@@ -27,6 +27,34 @@ class AnalysisRequest(BaseModel):
     address: str
     chain: str
 
+def auto_detect_chain(address: str, selected_chain: str) -> str:
+    """Auto-detect chain from address format"""
+    address = address.strip()
+    # Solana addresses are base58, 32-44 chars, no 0x prefix
+    if not address.startswith("0x") and len(address) > 30:
+        return "solana"
+    # EVM address - try selected chain first, default to eth
+    if address.startswith("0x"):
+        if selected_chain in ["bsc", "base", "arbitrum", "polygon", "eth"]:
+            return selected_chain
+        return "eth"
+    return selected_chain
+
+async def get_goplus_data_multi_chain(address: str, chain: str) -> tuple:
+    """Try multiple chains if result is empty"""
+    result = await get_goplus_data(address, chain)
+    if result:
+        return result, chain
+    
+    # If empty, try other EVM chains
+    if address.startswith("0x"):
+        for fallback_chain in ["bsc", "eth", "base", "arbitrum", "polygon"]:
+            if fallback_chain != chain:
+                result = await get_goplus_data(address, fallback_chain)
+                if result:
+                    return result, fallback_chain
+    return {}, chain
+
 async def get_goplus_data(address: str, chain: str) -> dict:
     try:
         async with httpx.AsyncClient(timeout=15.0) as http:
@@ -131,7 +159,8 @@ async def preview(request: AnalysisRequest):
     if len(address) < 30:
         raise HTTPException(status_code=400, detail="Invalid contract address")
 
-    goplus = await get_goplus_data(address, request.chain)
+    detected_chain = auto_detect_chain(address, request.chain)
+    goplus, actual_chain = await get_goplus_data_multi_chain(address, detected_chain)
     dex = await get_dexscreener_data(address)
     score, flags = calculate_risk(goplus, dex)
 
@@ -148,7 +177,8 @@ async def preview(request: AnalysisRequest):
         "verdict": verdict,
         "token_name": token_name,
         "top_flags": flags[:2],
-        "total_flags": len(flags)
+        "total_flags": len(flags),
+        "chain_detected": actual_chain
     }
 
 @app.post("/api/checkout")
@@ -189,7 +219,8 @@ async def get_report(session_id: str):
     address = session.metadata.get("address", "")
     chain = session.metadata.get("chain", "eth")
 
-    goplus = await get_goplus_data(address, chain)
+    detected_chain = auto_detect_chain(address, chain)
+    goplus, actual_chain = await get_goplus_data_multi_chain(address, detected_chain)
     dex = await get_dexscreener_data(address)
     score, flags = calculate_risk(goplus, dex)
 
