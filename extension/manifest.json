@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "CryptoSafety Scanner for DexScreener",
+  "version": "1.0.0",
+  "description": "Adds a one-click rug-pull Safety Score button to DexScreener token pages. Free preview, powered by cryptosafety.tech.",
+  "icons": {"16":"icons/icon16.png","48":"icons/icon48.png","128":"icons/icon128.png"},
+  "permissions": [],
+  "host_permissions": ["https://dexscreener.com/*","https://api.dexscreener.com/*","https://cryptosafety.tech/*"],
+  "content_scripts": [{
+    "matches": ["https://dexscreener.com/*"],
+    "js": ["content.js"],
+    "run_at": "document_idle"
+  }],
+  "action": {"default_popup":"popup.html","default_icon":"icons/icon48.png"}
+}
